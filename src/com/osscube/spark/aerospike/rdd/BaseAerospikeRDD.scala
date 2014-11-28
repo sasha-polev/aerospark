@@ -66,7 +66,7 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
                  initialHost: (String, Int),
                  namespace: String,
                  set: String = "",
-                 bins: Set[String] = "",
+                 bins: Array[String] = Array(""),
                  st: Statement = null,
                  makePartitioner: Boolean = true
                  ) = {

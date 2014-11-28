@@ -31,6 +31,9 @@ object Loader {
       val randKey = randomString(CHARSET_AZ_09, 5)
 
       client.put(policy.writePolicyDefault, new Key("test", "one_million", randKey),
+        new Bin("1char", randomString(CHARSET_AZ_09, 1)),
+        new Bin("2char", randomString(CHARSET_AZ_09, 2)),
+        new Bin("3char", randomString(CHARSET_AZ_09, 3)),
         new Bin("10chars", randomString(CHARSET_AZ_09, 10)),
         new Bin("50chars", randomString(CHARSET_AZ_09, 50)),
         new Bin("100chars", randomString(CHARSET_AZ_09, 100)),
