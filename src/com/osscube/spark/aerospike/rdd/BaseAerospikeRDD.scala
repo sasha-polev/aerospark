@@ -33,7 +33,7 @@ class AerospikePartitioner(val aerospikeHosts: Array[String]) extends HashPartit
                              @transient val aerospikeHosts: Array[Node],
                              val namespace: String,
                              val set: String,
-                             val bins: Set[String],
+                             val bins: Array[String],
                              val st: Statement,
                              val makePartitioner: Boolean
                               )

@@ -9,26 +9,36 @@ import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.rdd.RDD
 import org.apache.spark._
 import org.apache.spark.sql.Row
-/**
- * Created by Sasha on 27/11/2014.
- */
+import scala.collection.JavaConversions._
+
+
 class AerospikeRDD(
                     @transient sc: SparkContext,
                     @transient aerospikeHosts: Array[Node],
                     @transient namespace: String,
                     @transient set: String,
-                    @transient bins: Set[String],
+                    @transient bins: Array[String],
                     @transient st: Statement,
                     @transient makePartitioner: Boolean
                     ) extends BaseAerospikeRDD (sc, aerospikeHosts, namespace, set, bins, st, makePartitioner) {
   @DeveloperApi
   override def compute(split: Partition, context: TaskContext): Iterator[(String, Row)]  = {
+    var newSt : Statement = null
+    if(st == null) {
+      newSt = new Statement()
+      newSt.setNamespace(namespace)
+      newSt.setSetName(set)
+      newSt.setBinNames(bins:_*)
+    }
+    else
+      newSt = st
     val partition: AerospikePartition = split.asInstanceOf[AerospikePartition]
     val endpoint = partition.endpoint
     logDebug("RDD: " + split.index + ", Connecting to: " + endpoint._1)
     val policy = new ClientPolicy()
     val client = new AerospikeClient(policy, endpoint._1 , endpoint._2)
-    client.scanNode(policy.scanPolicyDefault, endpoint._3, namespace, set, null, bins.toArray:_*)
+    val res = client.queryNode(policy.queryPolicyDefault, newSt, client.getNode(endpoint._3))
+    new RecordSetIteratorWrapper(res).asInstanceOf[Iterator[(String, Row)]]
   }
 
 }
