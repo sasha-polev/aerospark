@@ -1,4 +1,4 @@
-package main.scala.com.osscube.spark.aerospike
+package com.osscube.spark.aerospike
 
 import java.security.SecureRandom
 
