@@ -47,6 +47,7 @@ class RecordSetIteratorWrapper (val rs: RecordSet) extends java.util.Iterator[(K
 
   def remove() : Unit =
   {
+    System.out.println("Iterator remove() called")
   }
 
 }

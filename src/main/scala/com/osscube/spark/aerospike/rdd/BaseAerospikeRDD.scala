@@ -31,10 +31,6 @@ class AerospikePartitioner(val aerospikeHosts: Array[String]) extends HashPartit
  abstract class BaseAerospikeRDD (
                              @transient sc: SparkContext,
                              @transient val aerospikeHosts: Array[Node],
-                             val namespace: String,
-                             val set: String,
-                             val bins: Array[String],
-                             val st: Statement,
                              val makePartitioner: Boolean
                               )
   extends RDD[(String, Row)](sc, Seq.empty) with Logging {
@@ -67,7 +63,7 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
                  namespace: String,
                  set: String = "",
                  bins: Array[String] = Array(""),
-                 st: Statement = null,
+                 filter: String = null,
                  makePartitioner: Boolean = true
                  ) = {
     var hosts : Array[Node] = null
@@ -78,7 +74,7 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
     }finally {
       client.close()
     }
-    new AerospikeRDD(sc, hosts, namespace, set, bins, st, makePartitioner)
+    new AerospikeRDD(sc, hosts, namespace, set, bins, filter, makePartitioner)
   }
 
 }
