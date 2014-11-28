@@ -73,7 +73,6 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
     var hosts : Array[Node] = null
     val policy = new ClientPolicy()
     val client = new AerospikeClient(policy, initialHost._1 , initialHost._2)
-    client.getNode("abc")
     try {
       hosts = client.getNodes()
     }finally {

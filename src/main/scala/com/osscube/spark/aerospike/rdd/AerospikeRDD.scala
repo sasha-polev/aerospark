@@ -2,14 +2,14 @@ package com.osscube.spark.aerospike.rdd
 
 
 import com.aerospike.client.cluster.Node
-import com.aerospike.client.{Host, AerospikeClient}
+import com.aerospike.client.{Record, Host, AerospikeClient}
 import com.aerospike.client.policy.ClientPolicy
 import com.aerospike.client.query.Statement
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.rdd.RDD
 import org.apache.spark._
 import org.apache.spark.sql.Row
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 
 class AerospikeRDD(
@@ -38,7 +38,13 @@ class AerospikeRDD(
     val policy = new ClientPolicy()
     val client = new AerospikeClient(policy, endpoint._1 , endpoint._2)
     val res = client.queryNode(policy.queryPolicyDefault, newSt, client.getNode(endpoint._3))
-    new RecordSetIteratorWrapper(res).asInstanceOf[Iterator[(String, Row)]]
+    new RecordSetIteratorWrapper(res).asScala.map{  p =>
+      val key = p._1
+      val rec = p._2
+      val binValues = rec.bins.values
+      val r = Row.fromSeq(binValues.toArray)
+      (key.toString, r)
+    }
   }
 
 }
