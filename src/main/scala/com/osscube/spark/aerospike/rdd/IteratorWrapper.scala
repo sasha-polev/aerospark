@@ -4,7 +4,7 @@ import com.aerospike.client.query.RecordSet
 import com.aerospike.client.Key
 import com.aerospike.client.Record
 
-class RecordSetIteratorWrapper (val rs: RecordSet) extends java.util.Iterator[(Key, Record)]{
+class RecordSetIteratorWrapper (val rs: RecordSet) extends java.util.Iterator[(Key, Record)] with AutoCloseable{
 
   var fetched: Boolean = false
   var key: Key = null
@@ -49,5 +49,11 @@ class RecordSetIteratorWrapper (val rs: RecordSet) extends java.util.Iterator[(K
   {
     System.out.println("Iterator remove() called")
   }
+
+  def close(): Unit =
+  {
+    rs.close()
+  }
+
 
 }
