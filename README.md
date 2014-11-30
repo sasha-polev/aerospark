@@ -11,11 +11,12 @@ Example use:
 ```
 import com.osscube.spark.aerospike.rdd._;import org.apache.spark.sql._
 val sqlContext = new SQLContext(sc)
-val aero  = sc.aeroSInput(("192.168.142.162" , 3000), "select column1,column1,intColumn1 from test.one_million where intColumn1 between -10000000 and 10000000", sqlContext)
+val aero  = sc.aeroSInput(("192.168.142.162" , 3000), "select column1,column1,intColumn1 from test.one_million where intColumn1 between -10000000 and 10000000", sqlContext ,6)
 aero.registerTempTable("aero")
 sqlContext.sql("select avg(intColumn1) from aero where intColumn1 < 0").collect
 
 ```
-(Assumes there is an numeric index on intColumn1)
+(Assumes there is an numeric index on intColumn1, creates 6 partitions per server)
+
 
 
