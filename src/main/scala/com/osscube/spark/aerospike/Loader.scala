@@ -34,15 +34,15 @@ object Loader {
       val randKey =
 
       client.put(policy.writePolicyDefault, new Key("test", "one_million", randomString(CHARSET_AZ_09, 5)),
-        new Bin("1char", randomString(CHARSET_AZ_09, 1)),
-        new Bin("2char", randomString(CHARSET_AZ_09, 2)),
-        new Bin("3char", randomString(CHARSET_AZ_09, 3)),
-        new Bin("10chars", randomString(CHARSET_AZ_09, 10)),
-        new Bin("50chars", randomString(CHARSET_AZ_09, 50)),
-        new Bin("100chars", randomString(CHARSET_AZ_09, 100)),
-        new Bin("300chars", randomString(CHARSET_AZ_09, 300)),
-        new Bin("long", random.nextLong),
-        new Bin("int", random.nextInt)
+        new Bin("column1", randomString(CHARSET_AZ_09, 1)),
+        new Bin("column1", randomString(CHARSET_AZ_09, 2)),
+        new Bin("column3", randomString(CHARSET_AZ_09, 3)),
+        new Bin("column10", randomString(CHARSET_AZ_09, 10)),
+        new Bin("column50", randomString(CHARSET_AZ_09, 50)),
+        new Bin("column100", randomString(CHARSET_AZ_09, 100)),
+        new Bin("column300", randomString(CHARSET_AZ_09, 300)),
+        new Bin("longColumn1", random.nextLong),
+        new Bin("intColumn1", random.nextInt)
       )
       //Thread.sleep(1);
     }

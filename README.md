@@ -4,7 +4,7 @@ Aerospike Spark Connector
 Spark glue to efficiently read data from Aerospike
 
   * Creates schema RDD from AQL statement (including determining datatypes on the single row query) or just RDD[Row] if not to be used with SparkSQL context
-  * Queries local Aoerospike nodes in parallel (allows parrallel reads from single server for range queries)
+  * Queries local Aerospike nodes in parallel (allows parrallel reads from single server for range queries)
   
 Example use:
 
