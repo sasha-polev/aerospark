@@ -48,9 +48,7 @@ class AerospikeRDD(
       val client = new AerospikeClient(policy, endpoint._1, endpoint._2)
       res = client.queryNode(policy.queryPolicyDefault, newSt, client.getNode(endpoint._3))
       new RecordSetIteratorWrapper(res).asScala.toArray.map { p =>
-        //val key = Buffer.bytesToHexString(p._1.digest)
         val binValues = bins.map(p._2.bins.get(_))
-        //p._2.bins.values.toArray.map(_.getClass)
         Row.fromSeq(binValues)
       }.iterator
   }

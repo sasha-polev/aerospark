@@ -136,7 +136,15 @@ case class AeroRelation (initialHost: String,
       if(attrs.length > 0)
       {
         val (filterType, filterBin, filterStringVal, filterVals) = attrs.head
-        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterType, filterBin, filterStringVal, filterVals)
+        var tuples: Seq[(Long, Long)] = filterVals
+        val lower: Long = filterVals(0)._1
+        val upper: Long = filterVals(0)._2
+        val range: Long = upper - lower
+        if(partitionsPerServer > 1 && range >= partitionsPerServer) {
+          val divided = range / partitionsPerServer
+          tuples =  (0 until partitionsPerServer).map(i => (lower + divided*i , if(i == partitionsPerServer -1) upper else lower + divided*(i +1) -1))
+        }
+        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterType, filterBin, filterStringVal, tuples)
       }
       else new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache)
     }

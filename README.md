@@ -33,7 +33,7 @@ aero.count
 Spark SQL use
 -------------
 
-New Spark 1.2.0 Data Sources API allows integration with Spark SQL CLI and Thrift/JDBC server:
+New Spark 1.2.+ Data Sources API allows integration with Spark SQL CLI and Thrift/JDBC server:
 
 Run SQL CLI or server with `--jars` pointing to the library (similar to Spark CLI):
 
@@ -44,7 +44,7 @@ spark-sql --jars  <path to build>/aerospike-spark-0.2-SNAPSHOT-jar-with-dependen
 Then you can use statements like the following:
 
 
-```
+```sql
 CREATE TEMPORARY TABLE aero
 USING com.osscube.spark.aerospike.rdd
 OPTIONS (initialHost "192.168.142.162:3000",
@@ -54,7 +54,7 @@ partitionsPerServer "2");
 
 or
 
-```
+```sql
 CREATE TEMPORARY TABLE aero
 USING com.osscube.spark.aerospike.rdd
 OPTIONS (initialHost "192.168.142.162:3000",
@@ -63,12 +63,12 @@ select "select * from test.one_million");
 
 When you do subsequent selects best efforts will be made to push down at least (and at most) one predicate to Aerospike, if index is present.
 
-```
+```sql
 select count(distinct column1) from aero where column1  = 'G';
 ```
 
 or
 
-```
+```sql
 select count(distinct column2) from aero where  intColumn1  > -1000000 and intColumn1 < 100000;
 ```
