@@ -31,11 +31,9 @@ object Loader {
 
     for(i <- 1 until 1000000)
     {
-      val randKey =
-
       client.put(policy.writePolicyDefault, new Key("test", "one_million", randomString(CHARSET_AZ_09, 5)),
         new Bin("column1", randomString(CHARSET_AZ_09, 1)),
-        new Bin("column1", randomString(CHARSET_AZ_09, 2)),
+        new Bin("column2", randomString(CHARSET_AZ_09, 2)),
         new Bin("column3", randomString(CHARSET_AZ_09, 3)),
         new Bin("column10", randomString(CHARSET_AZ_09, 10)),
         new Bin("column50", randomString(CHARSET_AZ_09, 50)),
@@ -44,6 +42,7 @@ object Loader {
         new Bin("longColumn1", random.nextLong),
         new Bin("intColumn1", random.nextInt)
       )
+
       //Thread.sleep(1);
     }
 

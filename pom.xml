@@ -6,8 +6,21 @@
 
     <groupId>com.osscube</groupId>
     <artifactId>aerospike-spark</artifactId>
-    <version>0.1-SNAPSHOT</version>
+    <version>0.2-SNAPSHOT</version>
 
+    <repositories>
+        <repository>
+            <id>spark-staging-1038</id>
+            <name>Spark 1.2.0 Staging (1038)</name>
+            <url>https://repository.apache.org/content/repositories/orgapachespark-1038/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>
@@ -67,26 +80,28 @@
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
             <version>2.10.4</version>
-           <!--scope>provided</scope-->
+           <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.10</artifactId>
-            <version>1.1.0</version>
+            <version>1.2.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-streaming_2.10</artifactId>
-            <version>1.1.0</version>
+            <version>1.2.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_2.10</artifactId>
-            <version>1.1.0</version>
+            <version>1.2.0</version>
             <scope>provided</scope>
         </dependency>
+
+
         <!--dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_2.10</artifactId>

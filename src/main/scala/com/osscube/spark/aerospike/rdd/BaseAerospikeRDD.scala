@@ -9,18 +9,21 @@ import com.aerospike.client.cluster.Node
 import com.aerospike.client.{Host, AerospikeClient}
 import com.aerospike.client.policy.{QueryPolicy, ClientPolicy}
 import com.aerospike.client.query.Statement
-import com.sun.org.apache.xalan.internal.xsltc.compiler.util.IntType
 import org.apache.spark.rdd.RDD
 import org.apache.spark._
-import org.apache.spark.sql.{SQLContext, Row}
-import org.apache.spark.sql.catalyst.types._
+import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.types.IntegerType
+import org.apache.spark.sql.catalyst.types.LongType
+import org.apache.spark.sql.catalyst.types.StringType
+import org.apache.spark.sql.catalyst.types.StructField
+import org.apache.spark.sql.catalyst.types.StructType
+import scala.collection.JavaConverters._
 
 
 
 
-import scala.collection.JavaConversions._
 
-//Filter types: 0 - equalsString, 1 - equalsLong, 2 - range
+//Filter types: 0 none, 1 - equalsString, 2 - equalsLong, 3 - range
 
 case class AerospikePartition(index: Int,
                               endpoint: (String, Int, String),
@@ -114,7 +117,10 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
     recs.next()
     val record = recs.getRecord
     val singleRecBins = record.bins
-    struct = StructType(bins.map { b =>
+    var binNames = bins
+    if(bins.length == 1 && bins(0) == "*")
+      binNames = singleRecBins.keySet.asScala.toSeq
+    struct = StructType(binNames.map { b =>
       singleRecBins.get(b) match {
         case v: Integer => StructField(b, IntegerType, true)
         case v: lang.Long => StructField(b, LongType, true)
