@@ -1,7 +1,7 @@
 Aerospike Spark Connector
 ===============
 
-NOTE: this version requires Spark 1.2.0+, if you are suing Spark 1.1.x please use [Spark-1.1.0](/sasha-polev/aerospark/tree/Spark-1.1.0) tag
+NOTE: this version requires Spark 1.2.0+, if you are using Spark 1.1.x please use [Spark-1.1.0](/sasha-polev/aerospark/tree/Spark-1.1.0) tag
 --------------------------------------------------------------------------------------------------
 
 Spark glue to efficiently read data from Aerospike
@@ -33,7 +33,7 @@ aero.count
 Spark SQL use
 -------------
 
-New Spark 1.2.0 Data Sources API allows integration is Spark SQL CLI and Thrift/JDBC server:
+New Spark 1.2.0 Data Sources API allows integration with Spark SQL CLI and Thrift/JDBC server:
 
 Run SQL CLI or server with `--jars` pointing to the library (similar to Spark CLI):
 
@@ -61,7 +61,7 @@ OPTIONS (initialHost "192.168.142.162:3000",
 select "select * from test.one_million");
 ```
 
-When you do subsequent selects best efforts will be made to push down at least one predicate to Aerospike, if index is present.
+When you do subsequent selects best efforts will be made to push down at least (and at most) one predicate to Aerospike, if index is present.
 
 ```
 select count(distinct column1) from aero where column1  = 'G';
