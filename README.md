@@ -1,7 +1,7 @@
 Aerospike Spark Connector
 ===============
 
-NOTE: this version requires Spark 1.2.0+, if you are using Spark 1.1.x please use [Spark-1.1.0](/sasha-polev/aerospark/tree/Spark-1.1.0) tag
+NOTE: this version requires Spark 1.2.0+, if you are using Spark 1.1.x please use [Spark-1.1.0](https://github.com/sasha-polev/aerospark/tree/Spark-1.1.0) tag
 --------------------------------------------------------------------------------------------------
 
 Spark glue to efficiently read data from Aerospike
