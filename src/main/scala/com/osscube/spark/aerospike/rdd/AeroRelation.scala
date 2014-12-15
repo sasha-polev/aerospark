@@ -50,7 +50,6 @@ case class AeroRelation (initialHost: String,
         val qp: QueryPolicy = new QueryPolicy()
         qp.maxConcurrentNodes = 1
         qp.recordQueueSize = 1
-
         val recs = client.queryNode(qp, newSt, nodeList(0))
         recs.next()
         val record = recs.getRecord
@@ -80,9 +79,6 @@ case class AeroRelation (initialHost: String,
     if(schemaCache == null && nodeList == null) {
       val tmp = schema
     }
-
-//    println("Req columns: " + requiredColumns)
-//    println("Filters " + filters)
 
     //Filter types: 0 none, 1 - equalsString, 2 - equalsLong, 3 - range
 

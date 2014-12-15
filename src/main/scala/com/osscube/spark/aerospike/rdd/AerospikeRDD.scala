@@ -73,7 +73,6 @@ object AerospikeRDD {
       if (tokenised(2).toUpperCase != "FROM")
         throw new Exception("Cant parse the statement, missing from: " + s)
 
-
       val namespaceAndSet = tokenised(3).split("\\.")
       val namespace = namespaceAndSet(0)
       val set = if (namespaceAndSet.length > 1) namespaceAndSet(1) else ""
@@ -91,10 +90,8 @@ object AerospikeRDD {
           var tuples: Seq[(Long, Long)] = Seq((lower, upper))
           val range: Long = upper - lower
           if(numPartitionsPerServerForRange > 1 && range >= numPartitionsPerServerForRange) {
-
             val divided = range / numPartitionsPerServerForRange
             tuples =  (0 until numPartitionsPerServerForRange).map(i => (lower + divided*i , if(i == numPartitionsPerServerForRange -1) upper else lower + divided*(i +1) -1))
-
           }
           return (namespace, set, bins, 3, trimmedBin, tuples, "")
         }
