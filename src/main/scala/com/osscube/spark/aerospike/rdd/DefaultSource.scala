@@ -12,26 +12,20 @@
  * the License.
  */
 
-package com.osscube.spark.aerospike
+package com.osscube.spark.aerospike.rdd
 
-import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.sources.RelationProvider
 
-import scala.language.implicitConversions
+class DefaultSource extends RelationProvider {
 
-
-package object rdd {
-  implicit def AeroContext(sc: SparkContext): SparkContextFunctions =
-    new SparkContextFunctions(sc)
-
-
-
-  implicit class AeroSqlContext(sqlContext: SQLContext) {
-    def aeroRDD(
-                 initialHost: String,
-                 select: String,
-                 numPartitionsPerServerForRange : Int = 1) =
-      new SparkContextFunctions(sqlContext.sparkContext).aeroSInput(initialHost, select,sqlContext, numPartitionsPerServerForRange )
-
+  /**
+   * Creates a new relation for Aerospike select statement.
+   */
+  def createRelation(sqlContext: SQLContext, parameters: Map[String, String]) = {
+    if(parameters.contains("partitionsPerServer") && !parameters("partitionsPerServer").isEmpty)
+      AeroRelation(parameters("initialHost"), parameters("select"), parameters("partitionsPerServer").toInt)(sqlContext)
+    else
+      AeroRelation(parameters("initialHost"), parameters("select"))(sqlContext)
   }
 }

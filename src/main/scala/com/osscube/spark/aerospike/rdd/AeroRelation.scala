@@ -1,46 +1,60 @@
+/*
+ * Copyright 2014 OSSCube UK.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package com.osscube.spark.aerospike.rdd
 
 import java.lang
 
-import com.aerospike.client.AerospikeClient
 import com.aerospike.client.cluster.Node
-import com.aerospike.client.policy.{QueryPolicy, ClientPolicy}
+import com.aerospike.client.policy.{ClientPolicy, QueryPolicy}
 import com.aerospike.client.query.Statement
+import com.aerospike.client.{AerospikeClient, Info}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.types._
-import org.apache.spark.sql.{StructType, Row, SQLContext}
 import org.apache.spark.sql.sources._
-import scala.collection.JavaConverters._
-import com.aerospike.client.Info
+import org.apache.spark.sql.{Row, SQLContext, StructType}
 
-case class AeroRelation (initialHost: String,
-                         select: String,
-                         partitionsPerServer : Int = 1)(@transient val sqlContext: SQLContext)
+import scala.collection.JavaConverters._
+
+case class AeroRelation(initialHost: String,
+                        select: String,
+                        partitionsPerServer: Int = 1)(@transient val sqlContext: SQLContext)
   extends PrunedFilteredScan {
 
-  var schemaCache : StructType = null
+  var schemaCache: StructType = null
   var nodeList: Array[Node] = null
   var namespaceCache: String = null
   var setCache: String = null
   var filterTypeCache: Int = 0
   var filterBinCache: String = null
-  var filterValsCache : Seq[(Long, Long)] = null
+  var filterValsCache: Seq[(Long, Long)] = null
   var filterStringValCache: String = null
 
   override def schema: StructType = {
-    if(schemaCache == null && nodeList == null) {
+    if (schemaCache == null && nodeList == null) {
       val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = AerospikeRDD.parseSelect(select, partitionsPerServer)
       namespaceCache = namespace
       setCache = set
       filterTypeCache = filterType
-      filterBinCache  = filterBin
+      filterBinCache = filterBin
       filterValsCache = filterVals
       filterStringValCache = filterStringVal
       val policy = new ClientPolicy()
       val splitHost = initialHost.split(":")
       val client = new AerospikeClient(policy, splitHost(0), splitHost(1).toInt)
       try {
-        nodeList = client.getNodes()
+        nodeList = client.getNodes
         val newSt = new Statement()
         newSt.setNamespace(namespace)
         newSt.setSetName(set)
@@ -60,9 +74,9 @@ case class AeroRelation (initialHost: String,
         }
         schemaCache = StructType(binNames.map { b =>
           singleRecBins.get(b) match {
-            case v: Integer => StructField(b, IntegerType, true)
-            case v: lang.Long => StructField(b, LongType, true)
-            case _ => StructField(b, StringType, true)
+            case v: Integer => StructField(b, IntegerType, nullable = true)
+            case v: lang.Long => StructField(b, LongType, nullable = true)
+            case _ => StructField(b, StringType, nullable = true)
           }
         })
         recs.close()
@@ -74,15 +88,14 @@ case class AeroRelation (initialHost: String,
     schemaCache
   }
 
-  override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] =
-  {
-    if(schemaCache == null && nodeList == null) {
+  override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
+    if (schemaCache == null && nodeList == null) {
       val tmp = schema
     }
 
     //Filter types: 0 none, 1 - equalsString, 2 - equalsLong, 3 - range
 
-    if(filterTypeCache == 0 && filters.length > 0) {
+    if (filterTypeCache == 0 && filters.length > 0) {
       val index_info = Info.request(nodeList(0), "sindex").split(";")
 
       def checkIndex(attr: String): Boolean = {
@@ -94,51 +107,50 @@ case class AeroRelation (initialHost: String,
           checkIndex(attr)
       }
 
-      val attrs : Seq[(Int, String, String, Seq[(Long, Long)])] = filters.flatMap{
-        case EqualTo(attribute, value) if  checkIndex(attribute) => Seq(if(schemaCache(attribute).dataType.typeName == "string" ) (1, attribute, value.toString, Seq((0L, 0L))) else (2, attribute, "", Seq((value.toString.toLong, 0L))))
+      val attrs: Seq[(Int, String, String, Seq[(Long, Long)])] = filters.flatMap {
+        case EqualTo(attribute, value) if checkIndex(attribute) => Seq(if (schemaCache(attribute).dataType.typeName == "string") (1, attribute, value.toString, Seq((0L, 0L))) else (2, attribute, "", Seq((value.toString.toLong, 0L))))
 
-        case f @ GreaterThanOrEqual(_, _) if checkDataTypeAndIndex(f.attribute) =>
-          Seq( (3, f.attribute, "", Seq(( f.value.toString.toLong,  filters.flatMap{
-            case sf @ LessThan(_, _) if sf.attribute == f.attribute =>  Seq(sf.value.toString.toLong)
-            case sf @ LessThanOrEqual(_, _)  if sf.attribute == f.attribute =>  Seq(sf.value.toString.toLong)
+        case f@GreaterThanOrEqual(_, _) if checkDataTypeAndIndex(f.attribute) =>
+          Seq((3, f.attribute, "", Seq((f.value.toString.toLong, filters.flatMap {
+            case sf@LessThan(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
+            case sf@LessThanOrEqual(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
             case _ => Seq(Long.MaxValue)
-        }.min))))
+          }.min))))
 
-        case f @ GreaterThan(_, _) if checkDataTypeAndIndex(f.attribute)  =>
-          Seq( (3, f.attribute, "", Seq(( f.value.toString.toLong,  filters.flatMap{
-            case sf @ LessThan(_, _) if sf.attribute == f.attribute =>  Seq(sf.value.toString.toLong)
-            case sf @ LessThanOrEqual(_, _)  if sf.attribute == f.attribute =>  Seq(sf.value.toString.toLong)
+        case f@GreaterThan(_, _) if checkDataTypeAndIndex(f.attribute) =>
+          Seq((3, f.attribute, "", Seq((f.value.toString.toLong, filters.flatMap {
+            case sf@LessThan(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
+            case sf@LessThanOrEqual(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
             case _ => Seq(Long.MaxValue)
           }.min))))
 
 
-        case f @ LessThanOrEqual(_, _)  if checkDataTypeAndIndex(f.attribute)   =>
-          Seq((3, f.attribute, "", Seq(( f.value.toString.toLong,  filters.flatMap{
-            case sf @ GreaterThan(_, _)  if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
-            case sf @ GreaterThanOrEqual(_, _)  if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
+        case f@LessThanOrEqual(_, _) if checkDataTypeAndIndex(f.attribute) =>
+          Seq((3, f.attribute, "", Seq((f.value.toString.toLong, filters.flatMap {
+            case sf@GreaterThan(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
+            case sf@GreaterThanOrEqual(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
             case _ => Seq(Long.MinValue)
-        }.max))))
+          }.max))))
 
-        case f @  LessThan(_, _) if checkDataTypeAndIndex(f.attribute)   =>
-          Seq((3, f.attribute, "", Seq(( f.value.toString.toLong,  filters.flatMap{
-            case sf @ GreaterThan(_, _)  if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
-            case sf @ GreaterThanOrEqual(_, _)  if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
+        case f@LessThan(_, _) if checkDataTypeAndIndex(f.attribute) =>
+          Seq((3, f.attribute, "", Seq((f.value.toString.toLong, filters.flatMap {
+            case sf@GreaterThan(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
+            case sf@GreaterThanOrEqual(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
             case _ => Seq(Long.MinValue)
           }.max))))
 
         case _ => Seq()
       }
 
-      if(attrs.length > 0)
-      {
+      if (attrs.length > 0) {
         val (filterType, filterBin, filterStringVal, filterVals) = attrs.head
         var tuples: Seq[(Long, Long)] = filterVals
         val lower: Long = filterVals(0)._1
         val upper: Long = filterVals(0)._2
         val range: Long = upper - lower
-        if(partitionsPerServer > 1 && range >= partitionsPerServer) {
+        if (partitionsPerServer > 1 && range >= partitionsPerServer) {
           val divided = range / partitionsPerServer
-          tuples =  (0 until partitionsPerServer).map(i => (lower + divided*i , if(i == partitionsPerServer -1) upper else lower + divided*(i +1) -1))
+          tuples = (0 until partitionsPerServer).map(i => (lower + divided * i, if (i == partitionsPerServer - 1) upper else lower + divided * (i + 1) - 1))
         }
         new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterType, filterBin, filterStringVal, tuples)
       }

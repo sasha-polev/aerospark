@@ -1,3 +1,17 @@
+/*
+ * Copyright 2014 OSSCube UK.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package com.osscube.spark.aerospike
 
 import java.security.SecureRandom
@@ -11,12 +25,12 @@ import com.aerospike.client.query.Filter
 object Loader {
   val random = new SecureRandom()
   def randomString(characterSet : String,  length: Int) :String = {
-    val s = for  {i <-  (0 until length)
+    val s = for  {i <-  0 until length
         randomCharIndex = random.nextInt(characterSet.length)
         result = characterSet(randomCharIndex)
     } yield result
 
-    return s.seq.mkString("")
+    s.seq.mkString("")
   }
 
 
@@ -29,7 +43,7 @@ object Loader {
     val begin : Long = System.currentTimeMillis()
     val CHARSET_AZ_09 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-    for(i <- 1 until 1000000)
+    for(i <- 1 until 100000)
     {
       client.put(policy.writePolicyDefault, new Key("test", "one_million", randomString(CHARSET_AZ_09, 5)),
         new Bin("column1", randomString(CHARSET_AZ_09, 1)),

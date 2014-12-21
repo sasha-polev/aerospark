@@ -1,16 +1,27 @@
+/*
+ * Copyright 2014 OSSCube UK.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package com.osscube.spark.aerospike.rdd
 
-import java.lang
-
+import com.aerospike.client.AerospikeClient
 import com.aerospike.client.cluster.Node
-import com.aerospike.client.{Record, Host, AerospikeClient}
 import com.aerospike.client.policy.ClientPolicy
 import com.aerospike.client.query.{Filter, RecordSet, Statement}
-import org.apache.spark.annotation.DeveloperApi
-import com.aerospike.client.command.Buffer
 import org.apache.spark._
+import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.types._
+
 import scala.collection.JavaConverters._
 
 
@@ -27,6 +38,7 @@ class AerospikeRDD(
                     ) extends BaseAerospikeRDD (sc, aerospikeHosts,  filterVals) {
   @DeveloperApi
   override def compute(split: Partition, context: TaskContext): Iterator[Row]  = {
+
     val partition: AerospikePartition = split.asInstanceOf[AerospikePartition]
     val newSt = new Statement()
     newSt.setNamespace(namespace)
@@ -45,33 +57,43 @@ class AerospikeRDD(
     logInfo("RDD: " + split.index + ", Connecting to: " + endpoint._1)
     val policy = new ClientPolicy()
     var res: RecordSet = null
-      val client = new AerospikeClient(policy, endpoint._1, endpoint._2)
-      res = client.queryNode(policy.queryPolicyDefault, newSt, client.getNode(endpoint._3))
-      new RecordSetIteratorWrapper(res).asScala.toArray.map { p =>
+    val client = new AerospikeClient(policy, endpoint._1, endpoint._2)
+
+    res = client.queryNode(policy.queryPolicyDefault, newSt, client.getNode(endpoint._3))
+
+    val wrapper: RecordSetIteratorWrapper = new RecordSetIteratorWrapper(res)
+    context.addTaskCompletionListener(context => {wrapper.close(); client.close()})
+    wrapper.asScala.map { p =>
         val binValues = bins.map(p._2.bins.get(_))
         Row.fromSeq(binValues)
-      }.iterator
+      }
   }
 }
 
-object AerospikeRDD {
 
+
+object AerospikeRDD {
 
   def removeDoubleSpaces (s:String): String = if(!s.contains("  ")) s else removeDoubleSpaces(s.replace("  "," "))
 
   //Filter types: 0 none, 1 - equalsString, 2 - equalsLong, 3 - range
+  /**
+   * 
+   * @param asql_statement
+   * @param numPartitionsPerServerForRange
+   * @return namespace, set, bins, filterType, filterBin, filterVals, filterStringVal
+   */
+  def parseSelect(asql_statement: String, numPartitionsPerServerForRange: Int): (String, String, Seq[String], Int, String, Seq[(Long, Long)] , String) = {
 
-  def parseSelect(s: String, numPartitionsPerServerForRange: Int): (String, String, Seq[String], Int, String, Seq[(Long, Long)] , String) = {
-
-    if (s != null && !s.isEmpty) {
-      val tokenised = removeDoubleSpaces(s.replace("=", " = ")).replace(", ", ",").replace(" ,", ",").split(" ")
+    if (asql_statement != null && !asql_statement.isEmpty) {
+      val tokenised = removeDoubleSpaces(asql_statement.replace("=", " = ")).replace(", ", ",").replace(" ,", ",").split(" ")
       if (tokenised(0).toUpperCase != "SELECT")
-        throw new Exception("Cant parse the statement, missing select: " + s)
+        throw new Exception("Cant parse the statement, missing select: " + asql_statement)
 
       val bins = tokenised(1).split(",")
 
       if (tokenised(2).toUpperCase != "FROM")
-        throw new Exception("Cant parse the statement, missing from: " + s)
+        throw new Exception("Cant parse the statement, missing from: " + asql_statement)
 
       val namespaceAndSet = tokenised(3).split("\\.")
       val namespace = namespaceAndSet(0)

@@ -14,7 +14,7 @@ Example use:
 ```sql
 import com.osscube.spark.aerospike.rdd._;import org.apache.spark.sql._
 val sqlContext = new SQLContext(sc)
-val aero  = sc.aeroSInput(("192.168.142.162" , 3000),
+val aero  = sc.aeroSInput("192.168.142.162:3000",
  "select column1,column1,intColumn1 from test.one_million where intColumn1 between -10000000 and 10000000", sqlContext ,6)
 aero.registerTempTable("aero")
 sqlContext.sql("select avg(intColumn1) from aero where intColumn1 < 0").collect
@@ -27,7 +27,7 @@ Other way to create and SQL RDD is to use  method on SQLContext itself:
 ```sql
 import com.osscube.spark.aerospike.rdd._;import org.apache.spark.sql._
 val sqlContext = new SQLContext(sc)
-val aero = sqlContext.aeroRDD(("192.168.142.162",3000),
+val aero = sqlContext.aeroRDD("192.168.142.162:3000",
  "select column1,column1,intColumn1 from test.one_million where intColumn1 between -10000000 and 10000000")
 aero.count
 ```
