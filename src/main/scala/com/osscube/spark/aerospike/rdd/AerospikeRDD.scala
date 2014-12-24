@@ -58,9 +58,7 @@ class AerospikeRDD(
     val policy = new ClientPolicy()
     var res: RecordSet = null
     val client = new AerospikeClient(policy, endpoint._1, endpoint._2)
-
     res = client.queryNode(policy.queryPolicyDefault, newSt, client.getNode(endpoint._3))
-
     val wrapper: RecordSetIteratorWrapper = new RecordSetIteratorWrapper(res)
     context.addTaskCompletionListener(context => {wrapper.close(); client.close()})
     wrapper.asScala.map { p =>
