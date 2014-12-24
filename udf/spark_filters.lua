@@ -1,4 +1,13 @@
+
+
 function filter_by_column(stream, bins, name, val)
+  local function split_line(line)
+    values = {}
+    for token in string.gmatch(line, "([^,]+)") do
+      table.insert(values, token)
+    end
+    return values
+  end
 
   bin_names = split_line(bins)
 
@@ -18,10 +27,15 @@ function filter_by_column(stream, bins, name, val)
 end
 
 function filter_in(stream, bins, name, list)
+  local function split_line(line)
+    values = {}
+    for token in string.gmatch(line, "([^,]+)") do
+      table.insert(values, token)
+    end
+    return values
+  end
 
   bin_names = split_line(bins)
-
-
 
   filter_values = split_line(list)
 
@@ -46,10 +60,3 @@ function filter_in(stream, bins, name, list)
 end
 
 
-function split_line(line)
-  values = {}
-  for token in string.gmatch(line, "([^,]+)") do
-    table.insert(values, token)
-  end
-  return values
-end

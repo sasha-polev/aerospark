@@ -14,13 +14,13 @@
 
 package com.osscube.spark.aerospike.rdd
 
-import com.aerospike.client.AerospikeClient
+import com.aerospike.client.{Value, AerospikeClient}
 import com.aerospike.client.cluster.Node
 import com.aerospike.client.policy.ClientPolicy
 import com.aerospike.client.query.{Filter, RecordSet, Statement}
 import org.apache.spark._
 import org.apache.spark.annotation.DeveloperApi
-import org.apache.spark.sql.Row
+import org.apache.spark.sql._
 
 import scala.collection.JavaConverters._
 
@@ -34,7 +34,10 @@ class AerospikeRDD(
                     val filterType: Int,
                     val filterBin : String,
                     val filterStringVal: String,
-                    @transient filterVals :  Seq[(Long, Long)]
+                    @transient filterVals :  Seq[(Long, Long)],
+                    val useUDF : Boolean = false,
+                    val udfParams: Array[String] = Array(),
+                    val sch: StructType = null
                     ) extends BaseAerospikeRDD (sc, aerospikeHosts,  filterVals) {
   @DeveloperApi
   override def compute(split: Partition, context: TaskContext): Iterator[Row]  = {
@@ -53,18 +56,49 @@ class AerospikeRDD(
     }
     if(aeroFilter != null)
       newSt.setFilters(aeroFilter)
+
+    if(useUDF)
+    {
+      newSt.setAggregateFunction("spark_filters", udfParams(0),  Array(Value.get(udfParams(1)), Value.get(udfParams(2)), Value.get(udfParams(3))), true)
+    }
+
     val endpoint = partition.endpoint
     logInfo("RDD: " + split.index + ", Connecting to: " + endpoint._1)
     val policy = new ClientPolicy()
     var res: RecordSet = null
     val client = new AerospikeClient(policy, endpoint._1, endpoint._2)
     res = client.queryNode(policy.queryPolicyDefault, newSt, client.getNode(endpoint._3))
+
+
     val wrapper: RecordSetIteratorWrapper = new RecordSetIteratorWrapper(res)
     context.addTaskCompletionListener(context => {wrapper.close(); client.close()})
     wrapper.asScala.map { p =>
-        val binValues = bins.map(p._2.bins.get(_))
+
+      if (!useUDF) {
+        val binValues = bins.map(p.bins.get(_))
         Row.fromSeq(binValues)
       }
+      else {
+        p.bins.get("SUCCESS") match {
+          case m: java.util.HashMap[Long, Any] =>
+            Row.apply(m.asScala.map(f =>
+               if (checkType(f._1))
+                 f._2
+               else
+                 f._2.asInstanceOf[java.lang.Long].intValue
+            )
+            )
+          case _ => throw new Exception(p.toString)
+        }
+      }
+    }
+
+  }
+
+  def checkType(position: Long): Boolean =
+  {
+    val binName = bins(position.toInt)
+    sch(binName).dataType.typeName != "integer"
   }
 }
 
@@ -77,8 +111,8 @@ object AerospikeRDD {
   //Filter types: 0 none, 1 - equalsString, 2 - equalsLong, 3 - range
   /**
    * 
-   * @param asql_statement
-   * @param numPartitionsPerServerForRange
+   * @param asql_statement ASQL statement to parse, select only
+   * @param numPartitionsPerServerForRange number partitions per Aerospike snode
    * @return namespace, set, bins, filterType, filterBin, filterVals, filterStringVal
    */
   def parseSelect(asql_statement: String, numPartitionsPerServerForRange: Int): (String, String, Seq[String], Int, String, Seq[(Long, Long)] , String) = {

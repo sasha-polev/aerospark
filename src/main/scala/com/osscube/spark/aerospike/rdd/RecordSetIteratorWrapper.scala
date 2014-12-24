@@ -17,27 +17,25 @@ package com.osscube.spark.aerospike.rdd
 import com.aerospike.client.{Key, Record}
 import com.aerospike.client.query.RecordSet
 
-class RecordSetIteratorWrapper (val rs: RecordSet) extends java.util.Iterator[(Key, Record)] with AutoCloseable{
+class RecordSetIteratorWrapper (val rs: RecordSet) extends java.util.Iterator[Record] with AutoCloseable{
 
   var fetched: Boolean = false
-  var key: Key = null
   var record : Record = null
 
-  def next() : (Key, Record) ={
+  def next() : Record ={
     if(fetched)
     {
       fetched = false
-      (key, record)
+      record
     }
     else
     {
       val b = rs.next()
       if(b)
       {
-        key = rs.getKey
         record = rs.getRecord
         fetched = true
-        (key, record)
+        record
       }
       else
         throw new Exception("Next called when no records are available")
@@ -49,7 +47,6 @@ class RecordSetIteratorWrapper (val rs: RecordSet) extends java.util.Iterator[(K
     val b = rs.next()
     if(b)
     {
-      key = rs.getKey
       record = rs.getRecord
       fetched = true
       true

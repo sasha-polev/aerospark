@@ -19,7 +19,7 @@ import java.lang
 import com.aerospike.client.cluster.Node
 import com.aerospike.client.policy.{ClientPolicy, QueryPolicy}
 import com.aerospike.client.query.Statement
-import com.aerospike.client.{AerospikeClient, Info}
+import com.aerospike.client.{Language, AerospikeClient, Info}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.types._
 import org.apache.spark.sql.sources._
@@ -98,6 +98,10 @@ case class AeroRelation(initialHost: String,
     if (filterTypeCache == 0 && filters.length > 0) {
       val index_info = Info.request(nodeList(0), "sindex").split(";")
 
+      var inFilter = false
+      var inFilterName = ""
+      var inFilterVals = ""
+
       def checkIndex(attr: String): Boolean = {
         index_info.filter(_.contains("ns=" + namespaceCache + ":set=" + setCache + ":")).filter(_.contains(":bins=" + attr + ":")).length > 0
       }
@@ -139,7 +143,24 @@ case class AeroRelation(initialHost: String,
             case _ => Seq(Long.MinValue)
           }.max))))
 
+        case In(s,v) =>
+          inFilter = true
+          inFilterName = s
+          inFilterVals = v.mkString(",")
+          Seq()
+
+
         case _ => Seq()
+      }
+
+      if(inFilter)
+      {
+        val udf_name: String = "spark_filters.lua"
+        if(!Info.request(nodeList(0), "udf-list").contains("filename=" + udf_name)) { //Should happen only once
+          val client = new AerospikeClient(null, nodeList(0).getHost)
+          val task = client.register(null, "udf/" + udf_name, udf_name, Language.LUA)
+          task.waitTillComplete()
+        }
       }
 
       if (attrs.length > 0) {
@@ -152,9 +173,9 @@ case class AeroRelation(initialHost: String,
           val divided = range / partitionsPerServer
           tuples = (0 until partitionsPerServer).map(i => (lower + divided * i, if (i == partitionsPerServer - 1) upper else lower + divided * (i + 1) - 1))
         }
-        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterType, filterBin, filterStringVal, tuples)
+        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterType, filterBin, filterStringVal, tuples, inFilter, Array("filter_in",requiredColumns.mkString(","), inFilterName, inFilterVals), schemaCache)
       }
-      else new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache)
+      else new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache, inFilter, Array("filter_in",requiredColumns.mkString(","), inFilterName, inFilterVals), schemaCache)
     }
     else new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache)
 

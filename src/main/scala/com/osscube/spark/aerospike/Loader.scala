@@ -20,7 +20,7 @@ import java.security.SecureRandom
 import com.aerospike.client._
 import com.aerospike.client.listener.WriteListener
 import com.aerospike.client.policy.ClientPolicy
-import com.aerospike.client.query.{Statement, Filter}
+import com.aerospike.client.query.{RecordSet, Statement, Filter}
 import com.aerospike.client.async.AsyncClient
 import com.osscube.spark.aerospike.rdd.RecordSetIteratorWrapper
 import scala.collection.JavaConverters._
@@ -43,11 +43,11 @@ object Loader {
     val policy = new ClientPolicy()
     policy.failIfNotConnected = true
     //val client = new AsyncClient("192.168.142.162" , 3000)
-    val client = new AerospikeClient("192.168.142.162" , 3000)
+    val client = new AerospikeClient("192.168.183.128" , 3000)
 
     val begin : Long = System.currentTimeMillis()
-//    val CHARSET_AZ_09 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-//
+    val CHARSET_AZ_09 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
 //    for(i <- 1 until 100000)
 //    {
 //      client.put( client.asyncWritePolicyDefault, new Key("test", "one_million", randomString(CHARSET_AZ_09, 5)),
@@ -65,27 +65,31 @@ object Loader {
 //      //Thread.sleep(1);
 //    }
 
-    val udf_name: String = "spark_filters.lua"
-    //if(!Info.request(client.getNodes()(0), "udf-list").contains("filename=" + udf_name)) {
-      val task = client.register(null, "udf/" + udf_name, udf_name, Language.LUA);
-      task.waitTillComplete()
-    //}
+//    val udf_name: String = "spark_filters.lua"
+//    if(!Info.request(client.getNodes()(0), "udf-list").contains("filename=" + udf_name)) {
+//      val task = client.register(null, "udf/" + udf_name, udf_name, Language.LUA)
+//      task.waitTillComplete()
+//    }
+//
+//
+//    val statement: Statement = new Statement()
+//    statement.setNamespace("test")
+//    statement.setSetName("one_million")
+//    //statement.setBinNames("column1")
+//    statement.setFilters(Filter.range("intColumn1", -100000000L, 100000000L))
+//    statement.setAggregateFunction("spark_filters", "filter_in",  Array(Value.get("column1,column2,column3"), Value.get("column2"), Value.get("AA,BB")), true)
+//    val recs: RecordSet = client.queryNode(client.queryPolicyDefault, statement, client.getNodes()(0))
+//    println(recs.next())
+//    println(recs.getRecord())
+//    val w = new RecordSetIteratorWrapper(recs)
+//    w.asScala.toArray.foreach { t =>
+//      t.bins.get("SUCCESS") match {
+//        //case m: java.util.HashMap[String , Any] => println(m)
+//        case m : Any => println(m)
+//      }
+//    }
 
-
-    val statement: Statement = new Statement()
-    statement.setNamespace("test")
-    statement.setSetName("one_million")
-    //statement.setBinNames("column1")
-    statement.setFilters(Filter.range("intColumn1", -100000000L, 100000000L))
-    statement.setAggregateFunction("spark_filters", "filter_by_column",  Array(Value.get("column1,column2,column3"), Value.get("column3"), Value.get("EEE")), true)
-    val w = new RecordSetIteratorWrapper(client.queryNode( client.queryPolicyDefault,  statement, client.getNodes()(0)))
-    w.asScala.toArray.foreach { t =>
-      t._2.bins.get("SUCCESS") match {
-        //case m: java.util.HashMap[String , Any] => println(m)
-        case m : Any => println(m)
-      }
-
-    }
+//    println(Info.request(client.getNodes()(0), "bins"))
 
 
     val end = System.currentTimeMillis()
