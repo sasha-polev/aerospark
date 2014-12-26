@@ -42,28 +42,29 @@ object Loader {
 
     val policy = new ClientPolicy()
     policy.failIfNotConnected = true
-    //val client = new AsyncClient("192.168.142.162" , 3000)
-    val client = new AerospikeClient("192.168.183.128" , 3000)
+    val client = new AsyncClient("192.168.142.162" , 3000)
+    //val client = new AerospikeClient("192.168.183.128" , 3000)
 
     val begin : Long = System.currentTimeMillis()
     val CHARSET_AZ_09 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-//    for(i <- 1 until 100000)
-//    {
-//      client.put( client.asyncWritePolicyDefault, new Key("test", "one_million", randomString(CHARSET_AZ_09, 5)),
-//          new Bin("column1", randomString(CHARSET_AZ_09, 1)),
-//          new Bin("column2", randomString(CHARSET_AZ_09, 2)),
-//          new Bin("column3", randomString(CHARSET_AZ_09, 3)),
-//          new Bin("column10", randomString(CHARSET_AZ_09, 10)),
-//          new Bin("column50", randomString(CHARSET_AZ_09, 50)),
-//          new Bin("column100", randomString(CHARSET_AZ_09, 100)),
-//          new Bin("column300", randomString(CHARSET_AZ_09, 300)),
-//          new Bin("longColumn1", random.nextLong),
-//          new Bin("intColumn1", random.nextInt)
-//      )
-//
-//      //Thread.sleep(1);
-//    }
+    for(i <- 1 until 100000)
+    {
+      client.put( client.asyncWritePolicyDefault, new Key("test", "one_million", randomString(CHARSET_AZ_09, 5)),
+        new Bin("column1", randomString(CHARSET_AZ_09, 1)),
+        new Bin("column2", randomString(CHARSET_AZ_09, 2)),
+        new Bin("column3", randomString(CHARSET_AZ_09, 3)),
+        new Bin("column10", randomString(CHARSET_AZ_09, 10)),
+        new Bin("column50", randomString(CHARSET_AZ_09, 50)),
+        new Bin("column100", randomString(CHARSET_AZ_09, 100)),
+        new Bin("column300", randomString(CHARSET_AZ_09, 300)),
+        new Bin("longColumn1", random.nextLong),
+        new Bin("intColumn1", random.nextInt),
+        new Bin("d", 1)
+      )
+
+      //Thread.sleep(1);
+    }
 
 //    val udf_name: String = "spark_filters.lua"
 //    if(!Info.request(client.getNodes()(0), "udf-list").contains("filename=" + udf_name)) {

@@ -36,7 +36,7 @@ class AerospikeRDD(
                     val filterStringVal: String,
                     @transient filterVals :  Seq[(Long, Long)],
                     val useUDF : Boolean = false,
-                    val udfParams: Array[String] = Array(),
+                    val attrs: Seq[(Int, String, String, Seq[(Long, Long)])] = Seq(),
                     val sch: StructType = null
                     ) extends BaseAerospikeRDD (sc, aerospikeHosts,  filterVals) {
   @DeveloperApi
@@ -48,18 +48,34 @@ class AerospikeRDD(
     newSt.setSetName(set)
     newSt.setBinNames(bins:_*)
     val aeroFilter: Filter = filterType match {
-        case 0 => null
-        case 1 => Filter.equal(filterBin, filterStringVal)
-        case 2 => Filter.equal(filterBin, partition.startRange)
-        case 3 => Filter.range(filterBin, partition.startRange, partition.endRange)
-        case _ => null
+      case 0 => null
+      case 1 => Filter.equal(filterBin, filterStringVal)
+      case 2 => Filter.equal(filterBin, partition.startRange)
+      case 3 => Filter.range(filterBin, partition.startRange, partition.endRange)
+      case _ => null
     }
     if(aeroFilter != null)
       newSt.setFilters(aeroFilter)
 
-    if(useUDF)
-    {
-      newSt.setAggregateFunction("spark_filters", udfParams(0),  Array(Value.get(udfParams(1)), Value.get(udfParams(2)), Value.get(udfParams(3))), true)
+
+
+    if(useUDF) {
+      var udfFilters : Array[Value] = Array(Value.getAsList(bins.asJava))
+
+            attrs.foreach {
+              case (1, s, stringVal, Seq((_, _))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(1),Value.get(s),Value.get(stringVal)))
+              case (2, s, stringVal, Seq((longLower, _))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(2),Value.get(s),Value.get(longLower)))
+              case (3, s, stringVal, Seq((longLower, longUpper))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(3),Value.get(s),Value.get(longLower),Value.get(longUpper)))
+
+              case (4, s, stringVal, Seq((longLower, longUpper))) =>
+                udfFilters = if (longLower == 0L)
+                  udfFilters :+ Value.get(Array(Value.get(4),Value.get(s)) ++  stringVal.split("'").map(Value.get))
+                else
+                  udfFilters :+ Value.get(Array(Value.get(4),Value.get(s)) ++ stringVal.split("'").map(_.toLong).map(Value.get))
+            }
+
+      newSt.setAggregateFunction("spark_filters", "multifilter", udfFilters, true)
+      //println(udfFilters.mkString(","))
     }
 
     val endpoint = partition.endpoint
@@ -81,14 +97,17 @@ class AerospikeRDD(
       else {
         p.bins.get("SUCCESS") match {
           case m: java.util.HashMap[Long, Any] =>
-            Row.apply(m.asScala.map(f =>
-               if (checkType(f._1))
-                 f._2
-               else
-                 f._2.asInstanceOf[java.lang.Long].intValue
+            Row.fromSeq(m.asScala.map { f =>
+              if (checkType(f._1))
+                f._2
+              else
+                f._2.asInstanceOf[java.lang.Long].intValue
+            }.toSeq
             )
-            )
-          case _ => throw new Exception(p.toString)
+          case _ =>
+            println("useUDF: " + useUDF)
+            println("UDF params: " + attrs.mkString("-"))
+            throw new Exception(p.toString)
         }
       }
     }
@@ -97,7 +116,7 @@ class AerospikeRDD(
 
   def checkType(position: Long): Boolean =
   {
-    val binName = bins(position.toInt)
+    val binName = bins(position.toInt -1)
     sch(binName).dataType.typeName != "integer"
   }
 }
@@ -110,7 +129,7 @@ object AerospikeRDD {
 
   //Filter types: 0 none, 1 - equalsString, 2 - equalsLong, 3 - range
   /**
-   * 
+   *
    * @param asql_statement ASQL statement to parse, select only
    * @param numPartitionsPerServerForRange number partitions per Aerospike snode
    * @return namespace, set, bins, filterType, filterBin, filterVals, filterStringVal
