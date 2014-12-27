@@ -35,7 +35,6 @@ class AerospikeRDD(
                     val filterBin : String,
                     val filterStringVal: String,
                     @transient filterVals :  Seq[(Long, Long)],
-                    val useUDF : Boolean = false,
                     val attrs: Seq[(Int, String, String, Seq[(Long, Long)])] = Seq(),
                     val sch: StructType = null
                     ) extends BaseAerospikeRDD (sc, aerospikeHosts,  filterVals) {
@@ -57,21 +56,21 @@ class AerospikeRDD(
     if(aeroFilter != null)
       newSt.setFilters(aeroFilter)
 
-
+    val useUDF = attrs.length > 0 && aeroFilter != null
 
     if(useUDF) {
       var udfFilters : Array[Value] = Array(Value.getAsList(bins.asJava))
 
             attrs.foreach {
               case (1, s, stringVal, Seq((_, _))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(1),Value.get(s),Value.get(stringVal)))
-              case (2, s, stringVal, Seq((longLower, _))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(2),Value.get(s),Value.get(longLower)))
-              case (3, s, stringVal, Seq((longLower, longUpper))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(3),Value.get(s),Value.get(longLower),Value.get(longUpper)))
-
-              case (4, s, stringVal, Seq((longLower, longUpper))) =>
-                udfFilters = if (longLower == 0L)
-                  udfFilters :+ Value.get(Array(Value.get(4),Value.get(s)) ++  stringVal.split("'").map(Value.get))
-                else
-                  udfFilters :+ Value.get(Array(Value.get(4),Value.get(s)) ++ stringVal.split("'").map(_.toLong).map(Value.get))
+              case (2, s, _, Seq((longLower, _))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(2),Value.get(s),Value.get(longLower)))
+              case (3, s, _, Seq((longLower, longUpper))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(3),Value.get(s),Value.get(longLower),Value.get(longUpper)))
+              case (4, s, stringVal, Seq((longLower, _))) =>
+                udfFilters =
+                  if (longLower == 0L)
+                    udfFilters :+ Value.get(Array(Value.get(4),Value.get(s)) ++  stringVal.split("'").map(Value.get))
+                  else
+                    udfFilters :+ Value.get(Array(Value.get(4),Value.get(s)) ++ stringVal.split("'").map(_.toLong).map(Value.get))
             }
 
       newSt.setAggregateFunction("spark_filters", "multifilter", udfFilters, true)

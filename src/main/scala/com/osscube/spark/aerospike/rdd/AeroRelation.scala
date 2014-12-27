@@ -107,7 +107,7 @@ case class AeroRelation(initialHost: String,
     if (filters.length > 0) {
       val index_info = Info.request(nodeList(0), "sindex").split(";")
 
-      var udfFilters : Array[Value] = Array(Value.get(requiredColumns.map(Value.get)))
+
 
       def checkIndex(attr: String): Boolean = {
         index_info.filter(_.contains("ns=" + namespaceCache + ":set=" + setCache + ":")).filter(_.contains(":bins=" + attr + ":")).length > 0
@@ -118,65 +118,51 @@ case class AeroRelation(initialHost: String,
         attrType == "long" || attrType == "integer"
       }
 
-//      def checkDataTypeAndIndex(attr: String): Boolean = {
-//        checkNumeric(attr) &&
-//          checkIndex(attr)
-//      }
+      def tupleGreater(attribute: String, value: Any): Seq[(Int, String, String, Seq[(Long, Long)])] = {
+        Seq((3, attribute, "", Seq((value.toString.toLong, filters.flatMap {
+          case LessThan(sf_attribute, sf_value) if sf_attribute == attribute => Seq(sf_value.toString.toLong)
+          case LessThanOrEqual(sf_attribute, sf_value) if sf_attribute == attribute => Seq(sf_value.toString.toLong)
+          case _ => Seq(Long.MaxValue)
+        }.min))))
+      }
 
+      def tupleLess(attribute: String, value: Any): Seq[(Int, String, String, Seq[(Long, Long)])] = {
+        Seq((3, attribute, "", Seq((filters.flatMap {
+          case GreaterThan(sf_attribute, sf_value) if sf_attribute == attribute => Seq(sf_value.toString.toLong)
+          case GreaterThanOrEqual(sf_attribute, sf_value) if sf_attribute == attribute => Seq(sf_value.toString.toLong)
+          case _ => Seq(Long.MinValue)
+        }.max, value.toString.toLong))))
+      }
 
-
-      val attrs: Seq[(Int, String, String, Seq[(Long, Long)])] = filters.flatMap {
+      val allFilters: Seq[(Int, String, String, Seq[(Long, Long)])] = filters.flatMap {
         case EqualTo(attribute, value)  =>
-          Seq(if (!checkNumeric(attribute))
-            (1, attribute, value.toString, Seq((0L, 0L)))
-          else
-            (2, attribute, "", Seq((value.toString.toLong, 0L))))
+          Seq(
+            if (!checkNumeric(attribute))
+              (1, attribute, value.toString, Seq((0L, 0L)))
+            else
+              (2, attribute, "", Seq((value.toString.toLong, 0L)))
+          )
 
-        case f@GreaterThanOrEqual(_, _) if checkNumeric(f.attribute) =>
-          Seq((3, f.attribute, "", Seq((f.value.toString.toLong, filters.flatMap {
-            case sf@LessThan(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
-            case sf@LessThanOrEqual(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
-            case _ => Seq(Long.MaxValue)
-          }.min))))
+        case GreaterThanOrEqual(attribute, value) if checkNumeric(attribute) =>
+          tupleGreater(attribute, value)
 
+        case GreaterThan(attribute, value) if checkNumeric(attribute) =>
+          tupleGreater(attribute, value)
 
-        case f@GreaterThan(_, _) if checkNumeric(f.attribute) =>
-          Seq((3, f.attribute, "", Seq((f.value.toString.toLong, filters.flatMap {
-            case sf@LessThan(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
-            case sf@LessThanOrEqual(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
-            case _ => Seq(Long.MaxValue)
-          }.min))))
+        case LessThanOrEqual(attribute, value) if checkNumeric(attribute) =>
+          tupleLess(attribute, value)
 
-
-        case f@LessThanOrEqual(_, _) if checkNumeric(f.attribute) =>
-          Seq((3, f.attribute, "", Seq((filters.flatMap {
-            case sf@GreaterThan(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
-            case sf@GreaterThanOrEqual(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
-            case _ => Seq(Long.MinValue)
-          }.max, f.value.toString.toLong))))
-
-        case f@LessThan(_, _) if checkNumeric(f.attribute) =>
-          Seq((3, f.attribute, "", Seq((filters.flatMap {
-            case sf@GreaterThan(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
-            case sf@GreaterThanOrEqual(_, _) if sf.attribute == f.attribute => Seq(sf.value.toString.toLong)
-            case _ => Seq(Long.MinValue)
-          }.max,f.value.toString.toLong))))
+        case LessThan(attribute, value) if checkNumeric(attribute) =>
+          tupleLess(attribute, value)
 
         case In(attribute, value) =>
-          Seq(if (!checkNumeric(attribute))
-            (4, attribute, value.mkString("'"), Seq((0L, 0L)))
-          else
-            (4, attribute, value.mkString("'"), Seq((1L, 0L))))
+          Seq(  (4, attribute, value.mkString("'"), Seq((if( checkNumeric(attribute)) 1L else 0L, 0L)))    )
 
         case _ => Seq()
       }
 
-      //TODO: remove when not needed
-      attrs.foreach {
-         case (i, _, _, _) if i > 0 => udfFilters = udfFilters :+ Value.get(Array())
-      }
 
-      if(udfFilters.length > 1)
+      if (allFilters.length > 0)
       {
         val udf_name: String = "spark_filters.lua"
         if(!Info.request(nodeList(0), "udf-list").contains("filename=" + udf_name)) { //Should normally happen only once
@@ -184,19 +170,19 @@ case class AeroRelation(initialHost: String,
           val content = Base64.encode(udf_data, 0, udf_data.length, false)
           val sb = new StringBuilder(udf_name.length() + content.length() + 100)
           sb.append("udf-put:filename=")
-          .append(udf_name)
-          .append(";content=")
-          .append(content)
-          .append(";content-len=")
-          .append(content.length())
-          .append(";udf-type=")
-          .append(language)
-          .append(";")
-          val r = new Info(nodeList(0).getConnection(0), sb.toString()) //do not read response for now
+            .append(udf_name)
+            .append(";content=")
+            .append(content)
+            .append(";content-len=")
+            .append(content.length())
+            .append(";udf-type=")
+            .append(language)
+            .append(";")
+          val _ = new Info(nodeList(0).getConnection(0), sb.toString()) //do not read response for now
         }
       }
 
-      val indexedAttrs = attrs.filter(s => checkIndex(s._2) && s._1 < 4)
+      val indexedAttrs = allFilters.filter(s => checkIndex(s._2) && s._1 < 4)
 
       if (filterTypeCache == 0 && indexedAttrs.length > 0) { //originally declared index query takes priority
         val (filterType, filterBin, filterStringVal, filterVals) = indexedAttrs.head
@@ -208,9 +194,9 @@ case class AeroRelation(initialHost: String,
           val divided = range / partitionsPerServer
           tuples = (0 until partitionsPerServer).map(i => (lower + divided * i, if (i == partitionsPerServer - 1) upper else lower + divided * (i + 1) - 1))
         }
-        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterType, filterBin, filterStringVal, tuples, udfFilters.length > 0,attrs, schemaCache)
+        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterType, filterBin, filterStringVal, tuples,  allFilters, schemaCache)
       }
-      else new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache, filterTypeCache != 0 && udfFilters.length > 0, attrs, schemaCache)
+      else new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache, allFilters, schemaCache)
     }
     else new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache)
 
