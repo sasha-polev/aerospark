@@ -173,10 +173,7 @@ case class AeroRelation(initialHost: String,
 
       //TODO: remove when not needed
       attrs.foreach {
-        case (1, name, stringVal, Seq((_, _))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(1),Value.get(name),Value.get(stringVal)))
-        case (2, name, stringVal, Seq((longLower, _))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(2),Value.get(name),Value.get(longLower)))
-        case (3, name, stringVal, Seq((longLower, longUpper))) => udfFilters = udfFilters :+ Value.get(Array(Value.get(3),Value.get(name),Value.get(longLower),Value.get(longUpper)))
-        case (4, name, stringVal, Seq((longLower, longUpper))) => udfFilters = udfFilters :+ Value.get(Array())
+         case (i, _, _, _) if i > 0 => udfFilters = udfFilters :+ Value.get(Array())
       }
 
       if(udfFilters.length > 1)
@@ -199,7 +196,7 @@ case class AeroRelation(initialHost: String,
         }
       }
 
-      val indexedAttrs = attrs.filter(s => checkIndex(s._2))
+      val indexedAttrs = attrs.filter(s => checkIndex(s._2) && s._1 < 4)
 
       if (filterTypeCache == 0 && indexedAttrs.length > 0) { //originally declared index query takes priority
         val (filterType, filterBin, filterStringVal, filterVals) = indexedAttrs.head
