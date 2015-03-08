@@ -74,3 +74,27 @@ or
 ```sql
 select count(distinct column2) from aero where  intColumn1  > -1000000 and intColumn1 < 100000;
 ```
+
+This version is tested with Aerospike 3.5 and has an optional parameter useUdfWithoutIndexQuery to allow UDF filtering even if no index is used in a query, e.x:
+
+```sql
+val sqlContext = new org.apache.spark.sql.hive.HiveContext(sc)
+sqlContext.sql("CREATE TEMPORARY TABLE aero USING com.osscube.spark.aerospike.rdd OPTIONS (initialHost \"192.168.142.162:3000\", select \"select * from test.one_million\", useUdfWithoutIndexQuery \"true\")")
+```
+
+NOTE: there is no explicit methods to write RDD back to Aerospike, but this can be achieved using code like this:
+
+```
+import com.aerospike.client.async.AsyncClient
+import com.aerospike.client._
+
+val rdd = sc.parallelize(List("1", "2", "3", "4", "5", "6", "7", "8", "9"), 3)
+rdd.foreachPartition{x =>
+	val client = new AsyncClient("192.168.142.162" , 3000)
+	x.foreach{ s =>
+		client.put( client.asyncWritePolicyDefault, new Key("test", "sample", s),
+			new Bin("column1", s)
+		)
+	}
+}
+```

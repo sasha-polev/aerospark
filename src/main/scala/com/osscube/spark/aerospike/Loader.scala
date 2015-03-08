@@ -18,12 +18,8 @@ package com.osscube.spark.aerospike
 import java.security.SecureRandom
 
 import com.aerospike.client._
-import com.aerospike.client.listener.WriteListener
-import com.aerospike.client.policy.ClientPolicy
-import com.aerospike.client.query.{RecordSet, Statement, Filter}
 import com.aerospike.client.async.AsyncClient
-import com.osscube.spark.aerospike.rdd.RecordSetIteratorWrapper
-import scala.collection.JavaConverters._
+import com.aerospike.client.policy.ClientPolicy
 
 object Loader {
   val random = new SecureRandom()
@@ -48,7 +44,7 @@ object Loader {
     val begin : Long = System.currentTimeMillis()
     val CHARSET_AZ_09 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-    for(i <- 1 until 100000)
+    for(i <- 1 until 1000000)
     {
       client.put( client.asyncWritePolicyDefault, new Key("test", "one_million", randomString(CHARSET_AZ_09, 5)),
         new Bin("column1", randomString(CHARSET_AZ_09, 1)),
@@ -95,7 +91,7 @@ object Loader {
 
     val end = System.currentTimeMillis()
     val seconds =  (end - begin) / 1000.0
-    System.out.println(seconds)
+    println(seconds)
     client.close()
 
 

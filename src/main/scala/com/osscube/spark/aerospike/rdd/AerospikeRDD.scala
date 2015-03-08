@@ -36,7 +36,8 @@ class AerospikeRDD(
                     val filterStringVal: String,
                     @transient filterVals :  Seq[(Long, Long)],
                     val attrs: Seq[(Int, String, String, Seq[(Long, Long)])] = Seq(),
-                    val sch: StructType = null
+                    val sch: StructType = null,
+                    useUdfWithoutIndexQuery: Boolean = false
                     ) extends BaseAerospikeRDD (sc, aerospikeHosts,  filterVals) {
   @DeveloperApi
   override def compute(split: Partition, context: TaskContext): Iterator[Row]  = {
@@ -56,7 +57,7 @@ class AerospikeRDD(
     if(aeroFilter != null)
       newSt.setFilters(aeroFilter)
 
-    val useUDF = attrs.length > 0 && aeroFilter != null
+    val useUDF = attrs.length > 0  && ( useUdfWithoutIndexQuery || aeroFilter != null )
 
     if(useUDF) {
       var udfFilters : Array[Value] = Array(Value.getAsList(bins.asJava))
@@ -74,7 +75,7 @@ class AerospikeRDD(
             }
 
       newSt.setAggregateFunction("spark_filters", "multifilter", udfFilters, true)
-      //println(udfFilters.mkString(","))
+      println("UDF Filters applied: " + udfFilters.mkString(","))
     }
 
     val endpoint = partition.endpoint

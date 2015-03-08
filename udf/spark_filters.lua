@@ -28,16 +28,18 @@ function multifilter(stream, bins, ...)
   end
 
   local filters = {}
-  for i,v in ipairs(arg) do
-    -- here we iterate function parameters and create table of filter functions
-    local t  = v[1] -- filter type
-    local n = v[2]  -- bin name to filter on
-    if t == 1 or t == 2 or t == 4 then  -- equal or inset are translated to same inset filter
-      table.insert(filters, f_in(n,tail2(v)))
-    elseif  t == 3 then
-      table.insert(filters, f_range(n,tail2(v)))
+  --if not arg == nil then
+    for i,v in ipairs(arg) do
+      -- here we iterate function parameters and create table of filter functions
+      local t  = v[1] -- filter type
+      local n = v[2]  -- bin name to filter on
+      if t == 1 or t == 2 or t == 4 then  -- equal or inset are translated to same inset filter
+        table.insert(filters, f_in(n,tail2(v)))
+      elseif  t == 3 then
+        table.insert(filters, f_range(n,tail2(v)))
+      end
     end
-  end
+  --end
 
   local function filter_columns(record)
     for _,f in ipairs(filters) do
