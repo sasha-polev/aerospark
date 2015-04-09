@@ -21,6 +21,7 @@ import com.aerospike.client.query.{Filter, RecordSet, Statement}
 import org.apache.spark._
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.sql._
+import org.apache.spark.sql.types.StructType
 
 import scala.collection.JavaConverters._
 
@@ -74,7 +75,7 @@ class AerospikeRDD(
                     udfFilters :+ Value.get(Array(Value.get(4),Value.get(s)) ++ stringVal.split("'").map(_.toLong).map(Value.get))
             }
 
-      newSt.setAggregateFunction("spark_filters", "multifilter", udfFilters, true)
+      newSt.setAggregateFunction("spark_filters", "multifilter", udfFilters:_*)
       println("UDF Filters applied: " + udfFilters.mkString(","))
     }
 

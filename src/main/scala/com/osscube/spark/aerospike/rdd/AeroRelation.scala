@@ -23,9 +23,11 @@ import com.aerospike.client.query.Statement
 import com.aerospike.client.{AerospikeClient, Info}
 import gnu.crypto.util.Base64
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.types._
+
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.sources._
-import org.apache.spark.sql.{Row, SQLContext, StructType}
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{Row, SQLContext}
 
 import scala.collection.JavaConverters._
 import scala.io.Source
@@ -34,7 +36,7 @@ case class AeroRelation(initialHost: String,
                         select: String,
                         partitionsPerServer: Int = 1,
                         useUdfWithoutIndexQuery : Boolean  = false)(@transient val sqlContext: SQLContext)
-  extends PrunedFilteredScan {
+  extends BaseRelation with PrunedFilteredScan {
 
   var schemaCache: StructType = null
   var nodeList: Array[Node] = null
