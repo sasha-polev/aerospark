@@ -21,12 +21,11 @@ import com.aerospike.client.cluster.Node
 import com.aerospike.client.policy.{ClientPolicy, QueryPolicy}
 import com.aerospike.client.query.Statement
 import com.aerospike.client.{AerospikeClient, Info}
+import com.osscube.spark.aerospike.AqlParser
 import gnu.crypto.util.Base64
 import org.apache.spark.rdd.RDD
-
-import org.apache.spark.sql.types._
 import org.apache.spark.sql.sources._
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{StructType, _}
 import org.apache.spark.sql.{Row, SQLContext}
 
 import scala.collection.JavaConverters._
@@ -49,7 +48,7 @@ case class AeroRelation(initialHost: String,
 
   override def schema: StructType = {
     if (schemaCache == null && nodeList == null) {
-      val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = AerospikeRDD.parseSelect(select, partitionsPerServer)
+      val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = AqlParser.parseSelect(select, partitionsPerServer).toArray()
       namespaceCache = namespace
       setCache = set
       filterTypeCache = filterType
