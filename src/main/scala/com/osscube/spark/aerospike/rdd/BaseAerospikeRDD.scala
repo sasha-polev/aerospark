@@ -47,7 +47,7 @@ case class AerospikePartition(index: Int,
 //}
 
 abstract class BaseAerospikeRDD(
-                                 @transient sc: SparkContext,
+                                 @transient val sc: SparkContext,
                                  @transient val aerospikeHosts: Array[Node],
                                  val filterVals: Seq[(Long, Long)]
                                  )

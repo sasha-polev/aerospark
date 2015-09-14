@@ -1,6 +1,6 @@
 package com.osscube.spark.aerospike
 
-import com.osscube.spark.aerospike.rdd.QueryParams
+import com.osscube.spark.aerospike.rdd._
 
 object AqlParser {
 
@@ -28,7 +28,6 @@ object AqlParser {
     tokenised
   }
 
-  //Filter types: 0 none, 1 - equalsString, 2 - equalsLong, 3 - range
   /**
    *
    * @param aqlStatement ASQL statement to parse, select only
@@ -49,18 +48,18 @@ object AqlParser {
       val filterBin: String = tokenised(5).trim
 
       if (isRangeQuery(tokenised)) {
-        new QueryParams(namespace, set, bins, 3, filterBin, processRange(tokenised, partitions), "")
+        new QueryParams(namespace, set, bins, FilterRange, filterBin, processRange(tokenised, partitions), "")
       } else if (isPredicateQuery(tokenised)) {
         if (tokenised(7).forall(n => n.isDigit || n == '-'))
-          new QueryParams(namespace, set, bins, 2, filterBin, Seq((tokenised(7).toLong, 0L)), "")
+          new QueryParams(namespace, set, bins, FilterLong, filterBin, Seq((tokenised(7).toLong, 0L)), "")
         else
-          new QueryParams(namespace, set, bins, 1, filterBin, Seq((0L, 0L)), tokenised(7))
+          new QueryParams(namespace, set, bins, FilterString, filterBin, Seq((0L, 0L)), tokenised(7))
       }
       else {
         throw new scala.IllegalArgumentException("Cant parse the statement, missing filter from WHERE: " + aqlStatement)
       }
     }
-    else new QueryParams(namespace, set, bins, 0, "", Seq((0L, 0L)), "")
+    else new QueryParams(namespace, set, bins, FilterNone, "", Seq((0L, 0L)), "")
   }
 
   private def isPredicateQuery(tokenised: Array[String]): Boolean = {
