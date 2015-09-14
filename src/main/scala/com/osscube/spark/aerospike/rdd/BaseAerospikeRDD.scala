@@ -20,6 +20,7 @@ import java.net.InetAddress
 import com.aerospike.client.AerospikeClient
 import com.aerospike.client.cluster.Node
 import com.aerospike.client.policy.ClientPolicy
+import com.osscube.spark.aerospike.AqlParser
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
@@ -46,7 +47,7 @@ case class AerospikePartition(index: Int,
 //}
 
 abstract class BaseAerospikeRDD(
-                                 @transient sc: SparkContext,
+                                 @transient val sc: SparkContext,
                                  @transient val aerospikeHosts: Array[Node],
                                  val filterVals: Seq[(Long, Long)]
                                  )
@@ -83,7 +84,7 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
                  select: String,
                  partitionsPerServer: Int = 1
                  ) = {
-    val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = AerospikeRDD.parseSelect(select, partitionsPerServer)
+    val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = AqlParser.parseSelect(select, partitionsPerServer).toArray()
     var hosts: Array[Node] = null
     val policy = new ClientPolicy()
     val splitHost = initialHost.split(":")
