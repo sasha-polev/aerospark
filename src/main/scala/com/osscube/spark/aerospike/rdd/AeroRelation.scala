@@ -35,7 +35,7 @@ case class AeroRelation(initialHost: String,
                         useUdfWithoutIndexQuery: Boolean = false)(@transient val sqlContext: SQLContext)
   extends BaseRelation with PrunedFilteredScan {
 
-  var schemaCache: StructType = null
+  var schemaCache: StructType = StructType(Seq.empty[StructField])
   var nodeList: Array[Node] = null
   var namespaceCache: String = null
   var setCache: String = null
@@ -46,7 +46,7 @@ case class AeroRelation(initialHost: String,
 
   override def schema: StructType = {
 
-    if (schemaCache == null && nodeList == null) {
+    if (schemaCache.isEmpty && nodeList == null) {
       val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = AqlParser.parseSelect(select, partitionsPerServer).toArray()
       namespaceCache = namespace
       setCache = set
@@ -100,7 +100,7 @@ case class AeroRelation(initialHost: String,
   }
 
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
-    if (schemaCache == null && nodeList == null) {
+    if (schemaCache.isEmpty && nodeList == null) {
       schema //ensure def schema always called before this method
     }
 
