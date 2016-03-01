@@ -82,12 +82,14 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
   def aeroInput(
                  initialHost: String,
                  select: String,
-                 partitionsPerServer: Int = 1
+                 partitionsPerServer: Int = 1,
+ 		 timeout: Int = 1000
                  ) = {
     val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = AqlParser.parseSelect(select, partitionsPerServer).toArray()
     var hosts: Array[Node] = null
     val policy = new ClientPolicy()
     val splitHost = initialHost.split(":")
+    policy.timeout=timeout
     val client = new AerospikeClient(policy, splitHost(0), splitHost(1).toInt)
 
     try {
