@@ -22,8 +22,8 @@ import org.apache.spark._
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.sql._
 import org.apache.spark.sql.types.StructType
-
 import scala.collection.JavaConverters._
+import com.aerospike.spark.AerospikeConnection
 
 
 class AerospikeRDD(
@@ -80,7 +80,7 @@ class AerospikeRDD(
     val endpoint = partition.endpoint
     logInfo("RDD: " + split.index + ", Connecting to: " + endpoint._1)
 
-    val client = new AerospikeClient(null, endpoint._1, endpoint._2)
+    val client = AerospikeConnection.getClient(endpoint._1, endpoint._2)
     val res: RecordSet = client.queryNode(null, stmt, client.getNode(endpoint._3))
 
     context.addTaskCompletionListener(context => {

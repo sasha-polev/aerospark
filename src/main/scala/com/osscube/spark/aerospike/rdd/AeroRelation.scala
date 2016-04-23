@@ -16,7 +16,6 @@ package com.osscube.spark.aerospike.rdd
 
 
 import java.lang
-
 import com.aerospike.client.cluster.Node
 import com.aerospike.client.policy.QueryPolicy
 import com.aerospike.client.query.{RecordSet, Statement}
@@ -26,10 +25,10 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.{StructType, _}
 import org.apache.spark.sql.{Row, SQLContext}
-
 import scala.collection.JavaConverters._
+import com.aerospike.spark.AerospikeConnection
 
-case class AeroRelation(initialHost: String,
+case class AeroRelation(initialHost: String, // in the form: hostname:port
                         select: String,
                         partitionsPerServer: Int = 1,
                         useUdfWithoutIndexQuery: Boolean = false)(@transient val sqlContext: SQLContext)
@@ -54,8 +53,7 @@ case class AeroRelation(initialHost: String,
       filterBinCache = filterBin
       filterValsCache = filterVals
       filterStringValCache = filterStringVal
-      val splitHost = initialHost.split(":")
-      val client = new AerospikeClient(null, splitHost(0), splitHost(1).toInt)
+      val client = AerospikeConnection.getClient(initialHost)
 
       try {
         nodeList = client.getNodes
