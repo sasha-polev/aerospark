@@ -23,7 +23,7 @@ import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.sql._
 import org.apache.spark.sql.types.StructType
 import scala.collection.JavaConverters._
-import com.aerospike.spark.AerospikeConnection
+import com.aerospike.spark.sql.AerospikeConnection
 
 
 class AerospikeRDD(
@@ -132,9 +132,9 @@ object AerospikeRDD {
     AqlParser.parseSelect(asql_statement, numPartitionsPerServerForRange).toArray()
 }
 
-class QueryParams(namespace: String, set: String, bins: Array[String],
-                  filterType: AeroFilterType, filterBin: String, filterVals: Seq[(Long, Long)],
-                  filterStringVal: String) {
+class QueryParams(val namespace: String, val set: String, val bins: Array[String],
+                  val filterType: AeroFilterType, val filterBin: String, val filterVals:  Seq[(Long, Long)],
+                  val filterStringVal: String) {
 
   @deprecated("use the object")
   def toArray(): (String, String, Seq[String], AeroFilterType, String, Seq[(Long, Long)], String) = {

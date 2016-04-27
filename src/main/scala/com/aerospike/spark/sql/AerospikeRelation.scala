@@ -1,108 +1,58 @@
-/*
- * Copyright 2014 OSSCube UK.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+package com.aerospike.spark.sql
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{Row, SQLContext}
+import org.apache.spark.sql.sources._
+import org.apache.spark.sql.types._
+import org.apache.spark.Logging
 
-package com.osscube.spark.aerospike.rdd
+import scala.collection.mutable.StringBuilder
+import scala.collection.JavaConversions._
 
+import com.aerospike.spark.sql.AerospikeConfig._
 
-import java.lang
 import com.aerospike.client.cluster.Node
 import com.aerospike.client.policy.QueryPolicy
 import com.aerospike.client.query.{RecordSet, Statement}
 import com.aerospike.client.{AerospikeClient, Info}
-import com.osscube.spark.aerospike.{AerospikeUtils, AqlParser}
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.sources._
-import org.apache.spark.sql.types.{StructType, _}
-import org.apache.spark.sql.{Row, SQLContext}
-import scala.collection.JavaConverters._
-import com.aerospike.spark.sql.AerospikeConnection
 
-case class AeroRelation(initialHost: String, // in the form: hostname:port
-                        select: String,
-                        partitionsPerServer: Int = 1,
-                        useUdfWithoutIndexQuery: Boolean = false)(@transient val sqlContext: SQLContext)
-  extends BaseRelation with PrunedFilteredScan {
+
+case class AerospikeRelation(
+  config: AerospikeConfig)
+  (@transient val sqlContext: SQLContext) extends BaseRelation
+    with PrunedFilteredScan with Logging{
+
+  @transient val queryEngine = AerospikeConnection.getQueryEngine(config)
 
   var schemaCache: StructType = StructType(Seq.empty[StructField])
-  var nodeList: Array[Node] = null
-  var namespaceCache: String = null
-  var setCache: String = null
-  var filterTypeCache: AeroFilterType = FilterNone
-  var filterBinCache: String = null
-  var filterValsCache: Seq[(Long, Long)] = null
-  var filterStringValCache: String = null
 
   override def schema: StructType = {
 
-    if (schemaCache.isEmpty && nodeList == null) {
-      val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = AqlParser.parseSelect(select, partitionsPerServer).toArray()
-      namespaceCache = namespace
-      setCache = set
-      filterTypeCache = filterType
-      filterBinCache = filterBin
-      filterValsCache = filterVals
-      filterStringValCache = filterStringVal
-      val client = AerospikeConnection.getClient(initialHost)
-
-      try {
-        nodeList = client.getNodes
-
-        val stmt = new Statement()
-        stmt.setNamespace(namespace)
-        stmt.setSetName(set)
-        if (bins.length > 1 || bins.head != "*")
-          stmt.setBinNames(bins: _*)
-
-        val qp: QueryPolicy = client.queryPolicyDefault
-        qp.maxConcurrentNodes = 1
-        qp.recordQueueSize = 1
-
-        val recs: RecordSet = client.queryNode(qp, stmt, nodeList.head)
-        try {
-          val iterator = recs.iterator()
-
-          if (iterator.hasNext) {
-            val record = iterator.next().record
-            var binNames = bins
-            if (bins.length == 1 && bins.head == "*") {
-              binNames = record.bins.keySet.asScala.toSeq
-            }
-            schemaCache = StructType(binNames.map { b =>
-              record.bins.get(b) match {
-                case v: Integer => StructField(b, IntegerType, nullable = true)
-                case v: lang.Long => StructField(b, LongType, nullable = true)
-                case _ => StructField(b, StringType, nullable = true)
-              }
-            })
-          }
-        } finally {
-          recs.close()
+    if (schemaCache.isEmpty) {
+      val columnTypes = mapAsScalaMap(queryEngine.inferSchema(config.get(AerospikeConfig.NameSpace).toString(),
+          config.get(AerospikeConfig.SetName).toString(), 100))
+          
+    for ((k,v) <- columnTypes) printf("key: %s, value: %s\n", k, v)
+     
+      val schemaFields = columnTypes.map { b =>
+        b._2 match {
+          case v: Class[Long] => StructField(b._1, LongType, nullable = true)
+          case v: Class[Double] => StructField(b._1, DoubleType, nullable = true)
+          case v: Class[String] => StructField(b._1, StringType, nullable = true)
+//          case v: Class[List] => StructField(b._1, ListType, nullable = true)
+//          case v: Class[Map] => StructField(b._1, MapType, nullable = true)
+          case _ => StructField(b._1, StringType, nullable = true)
         }
-      } finally {
-        client.close()
       }
-    }
+      schemaCache = StructType(schemaFields.toArray)
 
+    }
     schemaCache
   }
-
-  override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
-    if (schemaCache.isEmpty && nodeList == null) {
-      schema //ensure def schema always called before this method
-    }
-
-    if (filters.length > 0) {
+  
+  override def buildScan(
+    requiredColumns: Array[String],
+    filters: Array[Filter]): RDD[Row] = {
+     if (filters.length > 0) {
       val index_info = Info.request(nodeList.head, "sindex").split(";")
 
       def checkIndex(attr: String): Boolean = {
@@ -196,4 +146,6 @@ case class AeroRelation(initialHost: String, // in the form: hostname:port
       new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache)
     }
   }
+
+  
 }

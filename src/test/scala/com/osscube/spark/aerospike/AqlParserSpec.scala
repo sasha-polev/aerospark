@@ -81,17 +81,17 @@ class AqlParserSpec extends FlatSpec with Matchers {
   }
 
   it should "extract values" in {
-    val aNamespace: String = "aNamespace"
-    val aSet: String = "aSet"
+    val aNamespace: String = "test"
+    val aSet: String = "spark-set"
     val aqlQuery: String = "SELECT bin1, bin2, bin3 FROM " + "%s.%s".format(aNamespace, aSet)
 
-    val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = parseSelect(aqlQuery).toArray()
+    val tree = parseSelect(aqlQuery)
 
-    namespace shouldEqual aNamespace
-    set shouldEqual aSet
-    bins shouldEqual Array("bin1", "bin2", "bin3")
-    filterType should be(0)
-    filterVals shouldEqual Seq((0, 0))
+    tree.namespace shouldEqual aNamespace
+    tree.set shouldEqual aSet
+    tree.bins shouldEqual Array("bin1", "bin2", "bin3")
+    tree.filterType should be(0)
+    tree.filterVals shouldEqual Seq((0, 0))
   }
 
 
@@ -103,15 +103,15 @@ class AqlParserSpec extends FlatSpec with Matchers {
     val aqlQuery: String = "SELECT bin1, bin2, bin3 FROM " + "%s.%s".format(aNamespace, aSet) +
       " WHERE " + filteredBin + " = " + aFilter
 
-    val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = parseSelect(aqlQuery).toArray()
+    val tree = parseSelect(aqlQuery)
 
-    namespace shouldEqual aNamespace
-    set shouldEqual aSet
-    bins shouldEqual Array("bin1", "bin2", "bin3")
-    filterType should be(1)
-    filterBin shouldEqual filteredBin
-    filterVals shouldEqual Seq((0, 0))
-    filterStringVal shouldEqual aFilter
+    tree.namespace shouldEqual aNamespace
+    tree.set shouldEqual aSet
+    tree.bins shouldEqual Array("bin1", "bin2", "bin3")
+    tree.filterType should be(1)
+    tree.filterBin shouldEqual filteredBin
+    tree.filterVals shouldEqual Seq((0, 0))
+    tree.filterStringVal shouldEqual aFilter
   }
 
   it should "extract values when using a numeric filter" in {
@@ -122,14 +122,14 @@ class AqlParserSpec extends FlatSpec with Matchers {
     val aqlQuery: String = "SELECT bin1, bin2, bin3 FROM " + "%s.%s".format(aNamespace, aSet) +
       " WHERE " + filteredBin + " = " + aFilter
 
-    val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = parseSelect(aqlQuery).toArray()
+    val tree = parseSelect(aqlQuery)
 
-    namespace shouldEqual aNamespace
-    set shouldEqual aSet
-    bins shouldEqual Array("bin1", "bin2", "bin3")
-    filterType should be(2)
-    filterBin shouldEqual filteredBin
-    filterVals shouldEqual Seq((aFilter, 0))
+    tree.namespace shouldEqual aNamespace
+    tree.set shouldEqual aSet
+    tree.bins shouldEqual Array("bin1", "bin2", "bin3")
+    tree.filterType should be(2)
+    tree.filterBin shouldEqual filteredBin
+    tree.filterVals shouldEqual Seq((aFilter, 0))
   }
 
   it should "extract values from when using a range with even partition" in {
@@ -144,17 +144,17 @@ class AqlParserSpec extends FlatSpec with Matchers {
 
     val partition: Int = 2
 
-    val (namespace, set, bins, filterType, filterBin, filterVals, filterStringVal) = parseSelect(aqlQuery, partition).toArray()
+    val tree = parseSelect(aqlQuery, partition)
 
-    namespace shouldEqual aNamespace
-    set shouldEqual aSet
-    bins shouldEqual Array("bin1", "bin2", "bin3")
-    filterType should be(3)
-    filterBin shouldEqual filteredBin
+    tree.namespace shouldEqual aNamespace
+    tree.set shouldEqual aSet
+    tree.bins shouldEqual Array("bin1", "bin2", "bin3")
+    tree.filterType should be(3)
+    tree.filterBin shouldEqual filteredBin
     val middle: Int = (maxValue - minValue) / partition;
-    filterVals shouldEqual Vector((minValue, middle - 1), (middle, maxValue))
+    tree.filterVals shouldEqual Vector((minValue, middle - 1), (middle, maxValue))
 
-    println("filterVals: " + filterVals);
+    println("filterVals: " + tree.filterVals);
   }
 
 
