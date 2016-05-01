@@ -32,8 +32,8 @@
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
+					<source>1.7</source>
+					<target>1.7</target>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -90,25 +90,19 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-core_2.11</artifactId>
+			<artifactId>spark-core_2.10</artifactId>
 			<version>${spark.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-streaming_2.11</artifactId>
-			<version>${spark.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-sql_2.11</artifactId>
+			<artifactId>spark-sql_2.10</artifactId>
 			<version>${spark.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.scalatest</groupId>
-			<artifactId>scalatest_2.11</artifactId>
+			<artifactId>scalatest_2.10</artifactId>
 			<version>${scalatest.version}</version>
 			<!-- <scope>test</scope> -->
 		</dependency>
@@ -119,9 +113,9 @@
 		</dependency>
 	</dependencies>
 	<properties>
-		<spark.version>1.5.0</spark.version>
-		<scala.version>2.11.7</scala.version>
+		<spark.version>1.6.0</spark.version>
+		<scala.version>2.10.6</scala.version>
 		<scalatest.version>3.0.0-M8</scalatest.version>
-		<aerospike-client.version>3.1.5</aerospike-client.version>
+		<aerospike-client.version>[3.1.5,)</aerospike-client.version>
 	</properties>
 </project>

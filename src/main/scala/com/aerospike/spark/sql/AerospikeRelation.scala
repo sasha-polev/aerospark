@@ -1,19 +1,26 @@
 package com.aerospike.spark.sql
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Row, SQLContext}
-import org.apache.spark.sql.sources._
-import org.apache.spark.sql.types._
-import org.apache.spark.Logging
 
-import scala.collection.mutable.StringBuilder
 import scala.collection.JavaConversions._
+import scala.util.parsing.json.JSONType
 
+import org.apache.spark.Logging
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.sources._
+import org.apache.spark.sql.types.BinaryType
+import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.MapType
+
+import com.aerospike.client.Value
+import com.aerospike.client.command.ParticleType
+import com.aerospike.helper.query.Qualifier
+import com.aerospike.helper.query.Qualifier.FilterOperation
 import com.aerospike.spark.sql.AerospikeConfig._
-
-import com.aerospike.client.cluster.Node
-import com.aerospike.client.policy.QueryPolicy
-import com.aerospike.client.query.{RecordSet, Statement}
-import com.aerospike.client.{AerospikeClient, Info}
 
 
 case class AerospikeRelation(
@@ -23,7 +30,7 @@ case class AerospikeRelation(
 
   @transient val queryEngine = AerospikeConnection.getQueryEngine(config)
 
-  var schemaCache: StructType = StructType(Seq.empty[StructField])
+  var schemaCache: StructType = null
 
   override def schema: StructType = {
 
@@ -33,117 +40,76 @@ case class AerospikeRelation(
           
     for ((k,v) <- columnTypes) printf("key: %s, value: %s\n", k, v)
      
+    /*
+   BooleanType -> java.lang.Boolean
+   ByteType -> java.lang.Byte
+   ShortType -> java.lang.Short
+   IntegerType -> java.lang.Integer
+   FloatType -> java.lang.Float
+   DoubleType -> java.lang.Double
+   StringType -> String
+   DecimalType -> java.math.BigDecimal
+
+   DateType -> java.sql.Date
+   TimestampType -> java.sql.Timestamp
+
+   BinaryType -> byte array
+   ArrayType -> scala.collection.Seq (use getList for java.util.List)
+   MapType -> scala.collection.Map (use getJavaMap for java.util.Map)
+   StructType -> org.apache.spark.sql.Row
+   */
+    
+    
       val schemaFields = columnTypes.map { b =>
-        b._2 match {
-          case v: Class[Long] => StructField(b._1, LongType, nullable = true)
-          case v: Class[Double] => StructField(b._1, DoubleType, nullable = true)
-          case v: Class[String] => StructField(b._1, StringType, nullable = true)
-//          case v: Class[List] => StructField(b._1, ListType, nullable = true)
-//          case v: Class[Map] => StructField(b._1, MapType, nullable = true)
-          case _ => StructField(b._1, StringType, nullable = true)
-        }
+        b._2.intValue() match {
+          case ParticleType.INTEGER => StructField(b._1, LongType, nullable = true)
+          case ParticleType.DOUBLE => StructField(b._1, DoubleType, nullable = true)
+          case ParticleType.STRING => StructField(b._1, StringType, nullable = true)
+          case ParticleType.MAP => StructField(b._1, StringType, nullable = true) //TODO 
+          case ParticleType.LIST => StructField(b._1, StringType, nullable = true) //TODO 
+          case ParticleType.GEOJSON => StructField(b._1, StringType, nullable = true) //TODO 
+          case ParticleType.BLOB => StructField(b._1, BinaryType, nullable = true)
+          case _ => StructField(b._1, BinaryType, nullable = true)
+        }       
       }
       schemaCache = StructType(schemaFields.toArray)
-
     }
     schemaCache
   }
   
+  
   override def buildScan(
     requiredColumns: Array[String],
     filters: Array[Filter]): RDD[Row] = {
-     if (filters.length > 0) {
-      val index_info = Info.request(nodeList.head, "sindex").split(";")
-
-      def checkIndex(attr: String): Boolean = {
-        index_info
-          .filter(_.contains("ns=" + namespaceCache + ":set=" + setCache + ":"))
-          .filter(_.contains(":bins=" + attr + ":"))
-          .length > 0
-      }
-
-      def checkNumeric(attr: String): Boolean = {
-        val attrType: String = schemaCache(attr).dataType.typeName
-        attrType == "long" || attrType == "integer"
-      }
-
-      def tupleGreater(attribute: String, value: Any): Seq[(SparkFilterType, String, String, Seq[(Long, Long)])] = {
-        Seq((FilterRange, attribute, "", Seq((value.toString.toLong, filters.flatMap {
-          case LessThan(sf_attribute, sf_value) if sf_attribute == attribute => Seq(sf_value.toString.toLong)
-          case LessThanOrEqual(sf_attribute, sf_value) if sf_attribute == attribute => Seq(sf_value.toString.toLong)
-          case _ => Seq(Long.MaxValue)
-        }.min))))
-      }
-
-      def tupleLess(attribute: String, value: Any): Seq[(SparkFilterType, String, String, Seq[(Long, Long)])] = {
-        Seq((FilterRange, attribute, "", Seq((filters.flatMap {
-          case GreaterThan(sf_attribute, sf_value) if sf_attribute == attribute => Seq(sf_value.toString.toLong)
-          case GreaterThanOrEqual(sf_attribute, sf_value) if sf_attribute == attribute => Seq(sf_value.toString.toLong)
-          case _ => Seq(Long.MinValue)
-        }.max, value.toString.toLong))))
-      }
-
-      val allFilters: Seq[(SparkFilterType, String, String, Seq[(Long, Long)])] = filters.flatMap {
+    
+    if (filters.length > 0) {
+      
+      val allFilters = filters.map { _ match {
         case EqualTo(attribute, value) =>
-          Seq(
-            if (!checkNumeric(attribute))
-              (FilterString, attribute, value.toString, Seq((0L, 0L)))
-            else
-              (FilterLong, attribute, "", Seq((value.toString.toLong, 0L)))
-          )
+          new Qualifier(attribute, FilterOperation.EQ, Value.get(value))
 
-        case GreaterThanOrEqual(attribute, value) if checkNumeric(attribute) =>
-          tupleGreater(attribute, value)
+        case GreaterThanOrEqual(attribute, value) =>
+          new Qualifier(attribute, FilterOperation.GTEQ, Value.get(value))
 
-        case GreaterThan(attribute, value) if checkNumeric(attribute) =>
-          tupleGreater(attribute, value)
+        case GreaterThan(attribute, value) =>
+          new Qualifier(attribute, FilterOperation.GT, Value.get(value))
 
-        case LessThanOrEqual(attribute, value) if checkNumeric(attribute) =>
-          tupleLess(attribute, value)
+        case LessThanOrEqual(attribute, value) =>
+          new Qualifier(attribute, FilterOperation.LTEQ, Value.get(value))
 
-        case LessThan(attribute, value) if checkNumeric(attribute) =>
-          tupleLess(attribute, value)
+        case LessThan(attribute, value) =>
+          new Qualifier(attribute, FilterOperation.LT, Value.get(value))
 
-        case In(attribute, value) =>
-          Seq((FilterIn, attribute, value.mkString("'"), Seq((if (checkNumeric(attribute)) 1L else 0L, 0L))))
-
-        case _ => Seq()
-      }
-
-      if (allFilters.length > 0) {
-        val splitHost = initialHost.split(":")
-        val client = new AerospikeClient(null, splitHost(0), splitHost(1).toInt)
-        try {
-          AerospikeUtils.registerUdfWhenNotExist(client)
-        } finally {
-          client.close
+        case _ => None
         }
-      }
-
-      val indexedAttrs = allFilters.filter(s => {
-        checkIndex(s._2) && s._1.isInstanceOf[AeroFilterType]
-      })
-
-      if (filterTypeCache == FilterNone && indexedAttrs.length > 0) {
-        //originally declared index query takes priority
-        val (filterType: AeroFilterType, filterBin, filterStringVal, filterVals) = indexedAttrs.head
-        var tuples: Seq[(Long, Long)] = filterVals
-        val lower: Long = filterVals.head._1
-        val upper: Long = filterVals.head._2
-        val range: Long = upper - lower
-        if (partitionsPerServer > 1 && range >= partitionsPerServer) {
-          val divided = range / partitionsPerServer
-          tuples = (0 until partitionsPerServer)
-            .map(i => (lower + divided * i, if (i == partitionsPerServer - 1) upper else lower + divided * (i + 1) - 1))
-        }
-        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterType, filterBin, filterStringVal, tuples, allFilters, schemaCache, useUdfWithoutIndexQuery)
-      }
-      else {
-        new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache, allFilters, schemaCache, useUdfWithoutIndexQuery)
-      }
-    }
-    else {
-      new AerospikeRDD(sqlContext.sparkContext, nodeList, namespaceCache, setCache, requiredColumns, filterTypeCache, filterBinCache, filterStringValCache, filterValsCache)
+      }.asInstanceOf[Array[Qualifier]]
+      
+      new AerospikeRDD(sqlContext.sparkContext, config, requiredColumns, allFilters)
+      
+    } else {
+      
+      new AerospikeRDD(sqlContext.sparkContext, config, requiredColumns)
+      
     }
   }
 

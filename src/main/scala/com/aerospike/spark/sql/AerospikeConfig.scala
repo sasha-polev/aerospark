@@ -18,6 +18,14 @@ class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
       case _ => null
     }
   }
+	
+	def namespace(): String = {
+	  get(AerospikeConfig.NameSpace).asInstanceOf[String]
+	}
+
+	def set(): String = {
+	  get(AerospikeConfig.SetName).asInstanceOf[String]
+	}
 
 
   private def notFound[T](key: String): T =
