@@ -5,8 +5,11 @@ import com.aerospike.client.Bin
 import com.aerospike.client.Key
 import com.aerospike.helper.query.QueryEngine
 import org.scalatest.{FlatSpec, Matchers}
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.SQLContext
 
-class AerospikeRDDTest extends FlatSpec with Matchers {
+class AerospikeRDDTest extends FlatSpec {
   var client: AerospikeClient = _
   var queryEngine: QueryEngine = _
 
@@ -14,9 +17,6 @@ class AerospikeRDDTest extends FlatSpec with Matchers {
   
   it should " create data" in {
     client = AerospikeConnection.getClient("localhost", 3000)
-    queryEngine = new QueryEngine(client)
-
-
 
     for (i <- 1 to 100) {
       val key = new Key("test", "rdd-test", "rdd-test-"+i)
@@ -27,7 +27,22 @@ class AerospikeRDDTest extends FlatSpec with Matchers {
       )
     }
     
-    queryEngine.close()
     client.close()
+
+    
+    val conf = new SparkConf().setMaster("local[*]").setAppName("Aerospike RDD Tests")
+    val sc = new SparkContext(conf)
+    val sqlContext = new SQLContext(sc)
+    
+    println("Reading in data frame")
+		var thingsDF = sqlContext.read.
+						format("com.aerospike.spark.sql").
+						option("aerospike.seedHost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", "test").
+						load 
+		thingsDF.registerTempTable("thingsTable")
+		thingsDF.printSchema()
+    
   }
 }

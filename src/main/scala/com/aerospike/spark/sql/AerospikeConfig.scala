@@ -1,11 +1,13 @@
 package com.aerospike.spark.sql
 
-import collection.mutable.HashMap
-
+import scala.collection.mutable.Map
 
 class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
-	private val props = properties
 
+	def this(seedHost: String, port: String) {
+    this( Map(AerospikeConfig.SeedHost -> seedHost, AerospikeConfig.Port -> port.toInt) )
+  }
+	
 	def get(key: String): Any =
     properties.get(key.toLowerCase()).getOrElse(notFound(key))
 
@@ -27,20 +29,31 @@ class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 	  get(AerospikeConfig.SetName).asInstanceOf[String]
 	}
 
-
+	override def toString(): String = {
+	  var buff = new StringBuffer("[")
+	  properties.map(f => {
+	    buff.append("{")
+	    buff.append(f._1)
+	    buff.append("=")
+	    buff.append(f._2)
+	    buff.append("}")
+	  })
+	  buff.append("]")
+	  buff.toString()
+	}
   private def notFound[T](key: String): T =
     throw new IllegalStateException(s"Config item $key not specified")
 
 }
 
 object AerospikeConfig {
-	private val defaultValues = new HashMap[String, Any]
+	private val defaultValues = scala.collection.mutable.Map[String, Any](AerospikeConfig.SeedHost -> "127.0.0.1", AerospikeConfig.Port -> 3000)
 	private val defaultRequired = List(SeedHost, Port)
 
 	final val DEFAULT_READ_PURPOSE = "spark_read"
 	final val DEFAULT_WRITE_PURPOSE = "spark_write"
 
-	val SeedHost = "aerospike.seedHost"
+	val SeedHost = "aerospike.seedhost"
 	defineProperty(SeedHost, null)
 
 	val Port = "aerospike.port"
@@ -58,7 +71,7 @@ object AerospikeConfig {
 	val UpdateByKey = "aerospike.key"
 	defineProperty(UpdateByKey, null)
 	
-  def apply(props: Map[String, String], required: List[String] = defaultRequired) = {
+  def apply(props: Map[String, Any], required: List[String] = defaultRequired) = {
       
     val ciProps = props.map(kv => kv.copy(_1 = kv._1.toLowerCase))
     val ciRequired = required.map(x => x.toLowerCase)
@@ -75,7 +88,7 @@ object AerospikeConfig {
       required.diff(
         props.keys.toList.intersect(required))
     }")
-    new AerospikeConfig(defaultValues.toMap ++ ciProps)
+    new AerospikeConfig(ciProps)
   }
 
 

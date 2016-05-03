@@ -107,11 +107,7 @@ case class AerospikeRelation(
       new AerospikeRDD(sqlContext.sparkContext, config, requiredColumns, allFilters)
       
     } else {
-      
       new AerospikeRDD(sqlContext.sparkContext, config, requiredColumns)
-      
     }
   }
-
-  
 }
