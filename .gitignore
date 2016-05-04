@@ -7,3 +7,4 @@ target/
 .settings
 bin
 .cache-tests
+.cache-main

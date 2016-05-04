@@ -37,7 +37,7 @@ class AerospikeRDDTest extends FlatSpec {
     println("Reading in data frame")
 		var thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedHost", "127.0.0.1").
+						option("aerospike.seedhost", "127.0.0.1").
 						option("aerospike.port", "3000").
 						option("aerospike.namespace", "test").
 						load 
