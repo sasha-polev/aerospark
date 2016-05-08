@@ -16,6 +16,7 @@ object AerospikeConnection {
     val client = getClient(s"$host:$port")
     queryEngineCache.getOrElse(client, {
         val newEngine = new QueryEngine(client)
+        newEngine.refreshCluster()
         queryEngineCache += (client -> newEngine)
         newEngine
       })

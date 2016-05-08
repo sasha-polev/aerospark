@@ -26,7 +26,10 @@ import com.aerospike.spark.sql.AerospikeConfig._
 class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
   (@transient val sqlContext: SQLContext) 
     extends BaseRelation
-    with PrunedFilteredScan with Logging with Serializable{
+    with TableScan
+    with PrunedFilteredScan 
+    with Logging 
+    with Serializable {
 
   val conf = config
   
@@ -80,12 +83,14 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
     schemaCache
   }
   
+  override def buildScan(): RDD[Row] = {
+    new KeyRecordRDD(sqlContext.sparkContext, conf)
+  }
+  
   
   override def buildScan(
     requiredColumns: Array[String],
     filters: Array[Filter]): RDD[Row] = {
-    
-    if (filters.length > 0) {
       
       val allFilters = filters.map { _ match {
         case EqualTo(attribute, value) =>
@@ -107,10 +112,7 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
         }
       }.asInstanceOf[Array[Qualifier]]
       
-      new AerospikeRDD(sqlContext.sparkContext, conf, requiredColumns, allFilters)
+      new KeyRecordRDD(sqlContext.sparkContext, conf, requiredColumns, allFilters)
       
-    } else {
-      new AerospikeRDD(sqlContext.sparkContext, conf, requiredColumns)
-    }
   }
 }
