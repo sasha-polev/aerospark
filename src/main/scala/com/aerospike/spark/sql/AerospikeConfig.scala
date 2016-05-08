@@ -33,6 +33,10 @@ class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 	  get(AerospikeConfig.SetName).asInstanceOf[String]
 	}
 
+	def setProperty(key:String, value:Any) {
+	  properties += (key -> value)
+	}
+	
 	override def toString(): String = {
 	  var buff = new StringBuffer("[")
 	  properties.map(f => {
@@ -45,6 +49,7 @@ class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 	  buff.append("]")
 	  buff.toString()
 	}
+	
   private def notFound[T](key: String): T =
     throw new IllegalStateException(s"Config item $key not specified")
 
@@ -102,6 +107,22 @@ object AerospikeConfig {
 				sys.error(s"Config property already defined for key : $key")
 		else
 			defaultValues.put(lowerKey, defaultValue)
+	}
+	
+	def newConfig(seedHost:String, port: Int): AerospikeConfig = {
+	  var conf = new AerospikeConfig(seedHost, port)
+	  conf
+	}
+	
+	def newConfig(seedHost:String, port: String): AerospikeConfig = {
+	  var conf = new AerospikeConfig(seedHost, port)
+	  conf
+	}
+
+	def newConfig(seedHost:String, port: String, namespace:String ): AerospikeConfig = {
+	  var conf = new AerospikeConfig(seedHost, port)
+	  conf.setProperty(AerospikeConfig.NameSpace, namespace)
+	  conf
 	}
 
 }

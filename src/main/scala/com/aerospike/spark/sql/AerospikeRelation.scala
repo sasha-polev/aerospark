@@ -23,18 +23,21 @@ import com.aerospike.helper.query.Qualifier.FilterOperation
 import com.aerospike.spark.sql.AerospikeConfig._
 
 
-case class AerospikeRelation(
-  config: AerospikeConfig)
-  (@transient val sqlContext: SQLContext) extends BaseRelation
-    with PrunedFilteredScan with Logging{
+class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
+  (@transient val sqlContext: SQLContext) 
+    extends BaseRelation
+    with PrunedFilteredScan with Logging with Serializable{
 
-  @transient val queryEngine = AerospikeConnection.getQueryEngine(config)
-
+  val conf = config
+  
   var schemaCache: StructType = null
 
   override def schema: StructType = {
 
-    if (schemaCache.isEmpty) {
+    if (schemaCache == null || schemaCache.isEmpty) {
+
+      val queryEngine = AerospikeConnection.getQueryEngine(config)
+
       val columnTypes = mapAsScalaMap(queryEngine.inferSchema(config.get(AerospikeConfig.NameSpace).toString(),
           config.get(AerospikeConfig.SetName).toString(), 100))
           
@@ -104,10 +107,10 @@ case class AerospikeRelation(
         }
       }.asInstanceOf[Array[Qualifier]]
       
-      new AerospikeRDD(sqlContext.sparkContext, config, requiredColumns, allFilters)
+      new AerospikeRDD(sqlContext.sparkContext, conf, requiredColumns, allFilters)
       
     } else {
-      new AerospikeRDD(sqlContext.sparkContext, config, requiredColumns)
+      new AerospikeRDD(sqlContext.sparkContext, conf, requiredColumns)
     }
   }
 }

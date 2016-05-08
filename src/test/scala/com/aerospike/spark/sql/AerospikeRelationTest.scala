@@ -9,11 +9,11 @@ import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
 
-class AerospikeRDDTest extends FlatSpec {
+class AerospikeRelationTest extends FlatSpec {
   var client: AerospikeClient = _
   var queryEngine: QueryEngine = _
 
-  behavior of "AerospikeRDD"
+  behavior of "Aerospike Relation"
   
   it should " create data" in {
     client = AerospikeConnection.getClient("localhost", 3000)
@@ -33,7 +33,7 @@ class AerospikeRDDTest extends FlatSpec {
     val conf = new SparkConf().setMaster("local[*]").setAppName("Aerospike RDD Tests")
     val sc = new SparkContext(conf)
     val sqlContext = new SQLContext(sc)
-    
+
     println("Reading in data frame")
 		var thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
@@ -41,7 +41,6 @@ class AerospikeRDDTest extends FlatSpec {
 						option("aerospike.port", "3000").
 						option("aerospike.namespace", "test").
 						load 
-		thingsDF.registerTempTable("thingsTable")
 		thingsDF.printSchema()
     
   }
