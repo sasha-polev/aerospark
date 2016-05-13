@@ -21,6 +21,12 @@ import com.aerospike.client.command.ParticleType
 import com.aerospike.helper.query.Qualifier
 import com.aerospike.helper.query.Qualifier.FilterOperation
 import com.aerospike.spark.sql.AerospikeConfig._
+import com.aerospike.helper.query.KeyRecordIterator
+import com.aerospike.client.query.KeyRecord
+import com.aerospike.client.query.Statement
+import com.aerospike.client.policy.QueryPolicy
+import com.aerospike.client.AerospikeClient
+import scala.collection.mutable.ListBuffer
 
 
 class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
@@ -36,50 +42,82 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
   var schemaCache: StructType = null
 
   override def schema: StructType = {
-
+    val SCAN_COUNT = 10
+    
     if (schemaCache == null || schemaCache.isEmpty) {
 
-      val queryEngine = AerospikeConnection.getQueryEngine(config)
-
-      val columnTypes = mapAsScalaMap(queryEngine.inferSchema(config.get(AerospikeConfig.NameSpace).toString(),
-          config.get(AerospikeConfig.SetName).toString(), 100))
-          
-    for ((k,v) <- columnTypes) printf("key: %s, value: %s\n", k, v)
+      val client = new AerospikeClient("127.0.0.1",3000)//AerospikeConnection.getClient(config)
+      
+      var fields = collection.mutable.Map[String,StructField]()
+  		fields += "namespace" -> StructField("namespace", StringType, false)
+  		fields += "set" -> StructField("set", StringType, true)
+  		fields += "digest" -> StructField("digest", BinaryType, false)
+  		fields += "key" -> StructField("key", StringType, true)
      
-    /*
-   BooleanType -> java.lang.Boolean
-   ByteType -> java.lang.Byte
-   ShortType -> java.lang.Short
-   IntegerType -> java.lang.Integer
-   FloatType -> java.lang.Float
-   DoubleType -> java.lang.Double
-   StringType -> String
-   DecimalType -> java.math.BigDecimal
-
-   DateType -> java.sql.Date
-   TimestampType -> java.sql.Timestamp
-
-   BinaryType -> byte array
-   ArrayType -> scala.collection.Seq (use getList for java.util.List)
-   MapType -> scala.collection.Map (use getJavaMap for java.util.Map)
-   StructType -> org.apache.spark.sql.Row
-   */
+  		var stmt = new Statement();
+  		stmt.setNamespace(config.get(AerospikeConfig.NameSpace).asInstanceOf[String]);
+  		stmt.setSetName(config.get(AerospikeConfig.SetName).asInstanceOf[String]);
+//  		val binAny = config.getIfNotEmpty(AerospikeConfig.BinList, null)
+//  		if (binAny != null){
+//  		  val binString = binAny.asInstanceOf[String]
+//  		  val binNames = binString.split(",")
+//  		  stmt.setBinNames(binNames:_*);
+//  		}
+  		println("***** about to query *****")
+  		var recordSet = client.query(null, stmt)
+  		println("***** process results *****")
+  		    
+  		try{
+  		  val sample = recordSet.take(SCAN_COUNT)
+  			sample.foreach { keyRecord => 
+  			  
+       /*
+       BooleanType -> java.lang.Boolean
+       ByteType -> java.lang.Byte
+       ShortType -> java.lang.Short
+       IntegerType -> java.lang.Integer
+       FloatType -> java.lang.Float
+       DoubleType -> java.lang.Double
+       StringType -> String
+       DecimalType -> java.math.BigDecimal
+    
+       DateType -> java.sql.Date
+       TimestampType -> java.sql.Timestamp
+    
+       BinaryType -> byte array
+       ArrayType -> scala.collection.Seq (use getList for java.util.List)
+       MapType -> scala.collection.Map (use getJavaMap for java.util.Map)
+       StructType -> org.apache.spark.sql.Row
+       */
     
     
-      val schemaFields = columnTypes.map { b =>
-        b._2.intValue() match {
-          case ParticleType.INTEGER => StructField(b._1, LongType, nullable = true)
-          case ParticleType.DOUBLE => StructField(b._1, DoubleType, nullable = true)
-          case ParticleType.STRING => StructField(b._1, StringType, nullable = true)
-          case ParticleType.MAP => StructField(b._1, StringType, nullable = true) //TODO 
-          case ParticleType.LIST => StructField(b._1, StringType, nullable = true) //TODO 
-          case ParticleType.GEOJSON => StructField(b._1, StringType, nullable = true) //TODO 
-          case ParticleType.BLOB => StructField(b._1, BinaryType, nullable = true)
-          case _ => StructField(b._1, BinaryType, nullable = true)
-        }       
-      }
-      schemaCache = StructType(schemaFields.toArray)
-    }
+        keyRecord.record.bins.foreach { bin =>
+          val binVal = bin._2
+          val binName = bin._1
+          val field = binVal match {
+            case _: java.lang.Long => StructField(binName, LongType, nullable = true)
+            case _: java.lang.Double => StructField(binName, DoubleType, nullable = true)
+            case s:String => StructField(binName, StringType, nullable = true)
+            case Map => StructField(binName, StringType, nullable = true) //TODO 
+            case List => StructField(binName, StringType, nullable = true) //TODO 
+            //case ParticleType.GEOJSON => StructField(binName, StringType, nullable = true) //TODO 
+            case Array => StructField(binName, BinaryType, nullable = true)
+            case _ => StructField(binName, BinaryType, nullable = true)
+            } 
+          
+            fields.get(binName) match {
+              case Some(e) => fields.update(binName, field)
+              case None    => fields += binName -> field
+            }
+          }
+  			}
+  		} finally {
+  			recordSet.close();
+  		}
+  		
+  		val fieldSeq = fields.values.toSeq
+  		schemaCache = StructType(fieldSeq)
+  	} 
     schemaCache
   }
   
@@ -115,4 +153,6 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
       new KeyRecordRDD(sqlContext.sparkContext, conf, requiredColumns, allFilters)
       
   }
+  
+  
 }

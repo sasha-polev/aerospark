@@ -14,10 +14,8 @@ class DefaultSource extends RelationProvider  {
    parameters.getOrElse(AerospikeConfig.SeedHost, sys.error(AerospikeConfig.SeedHost + " must be specified"))
    parameters.getOrElse(AerospikeConfig.Port, sys.error(AerospikeConfig.Port + " must be specified"))
    parameters.getOrElse(AerospikeConfig.NameSpace, sys.error(AerospikeConfig.NameSpace + " must be specified"))
-   val conf = AerospikeConfig.newConfig(
-            parameters.get(AerospikeConfig.SeedHost).get,
-            parameters.get(AerospikeConfig.Port).get,
-            parameters.get(AerospikeConfig.NameSpace).get)
+   val conf = AerospikeConfig.apply(parameters, 
+       List(AerospikeConfig.SeedHost, AerospikeConfig.Port, AerospikeConfig.NameSpace, AerospikeConfig.SetName))
    val ref = new AerospikeRelation(conf, null)(sqlContext)
    return ref
  }

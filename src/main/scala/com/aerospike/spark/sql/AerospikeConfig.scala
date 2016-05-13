@@ -1,6 +1,6 @@
 package com.aerospike.spark.sql
 
-import scala.collection.mutable.Map
+import scala.collection.immutable.Map
 
 class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 
@@ -33,9 +33,9 @@ class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 	  get(AerospikeConfig.SetName).asInstanceOf[String]
 	}
 
-	def setProperty(key:String, value:Any) {
-	  properties += (key -> value)
-	}
+//	def setProperty(key:String, value:Any) {
+//	  properties += (key -> value)
+//	}
 	
 	override def toString(): String = {
 	  var buff = new StringBuffer("[")
@@ -80,6 +80,9 @@ object AerospikeConfig {
 	val UpdateByKey = "aerospike.key"
 	defineProperty(UpdateByKey, null)
 	
+	val BinList = "aerospike.bins"
+	defineProperty(BinList, null)
+	
   def apply(props: Map[String, Any], required: List[String] = defaultRequired) = {
       
     val ciProps = props.map(kv => kv.copy(_1 = kv._1.toLowerCase))
@@ -119,10 +122,10 @@ object AerospikeConfig {
 	  conf
 	}
 
-	def newConfig(seedHost:String, port: String, namespace:String ): AerospikeConfig = {
-	  var conf = new AerospikeConfig(seedHost, port)
-	  conf.setProperty(AerospikeConfig.NameSpace, namespace)
-	  conf
-	}
+//	def newConfig(seedHost:String, port: String, namespace:String ): AerospikeConfig = {
+//	  var conf = new AerospikeConfig(seedHost, port)
+//	  conf.setProperty(AerospikeConfig.NameSpace, namespace)
+//	  conf
+//	}
 
 }

@@ -10,7 +10,7 @@ object AerospikeConnection {
   val clientCache = new scala.collection.mutable.HashMap[String, AerospikeClient]()
   val queryEngineCache = new scala.collection.mutable.HashMap[AerospikeClient, QueryEngine]()
   
-  def getQueryEngine(config: AerospikeConfig) : QueryEngine = {
+  def getQueryEngine(config: AerospikeConfig) : QueryEngine = synchronized {
     val host = config.get(AerospikeConfig.SeedHost);
     val port = config.get(AerospikeConfig.Port);
     val client = getClient(s"$host:$port")
@@ -27,11 +27,11 @@ object AerospikeConnection {
     getClient(s"$host:$port")
   }
   
-  def getClient(host: String, port: Int) : AerospikeClient = {
+   def getClient(host: String, port: Int) : AerospikeClient = {
     getClient(s"$host:$port")
   }
   
-  def getClient(hostPort: String) : AerospikeClient = {
+  def getClient(hostPort: String) : AerospikeClient = synchronized {
     clientCache.getOrElse(hostPort, {
         val splitHost = hostPort.split(":")
         val host = splitHost(0)
