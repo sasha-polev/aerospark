@@ -32,8 +32,16 @@ object AerospikeConnection {
   }
   
   def getClient(hostPort: String) : AerospikeClient = synchronized {
-    clientCache.getOrElse(hostPort, {
-        val splitHost = hostPort.split(":")
+    var client = clientCache.getOrElse(hostPort, {
+        newClient(hostPort)
+      })
+    if (!client.isConnected())
+      client = newClient(hostPort)
+    client   
+  }
+  
+  private def newClient(hostPort: String): AerospikeClient = {
+    val splitHost = hostPort.split(":")
         val host = splitHost(0)
         val port = splitHost(1).toInt
         val newClient = new AerospikeClient(host, port)
@@ -42,8 +50,6 @@ object AerospikeConnection {
           clientCache += (node.getHost.toString() -> newClient)
         }
         newClient
-      })
-    
   }
   
 }

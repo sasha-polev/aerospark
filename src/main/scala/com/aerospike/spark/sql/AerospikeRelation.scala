@@ -27,6 +27,7 @@ import com.aerospike.client.query.Statement
 import com.aerospike.client.policy.QueryPolicy
 import com.aerospike.client.AerospikeClient
 import scala.collection.mutable.ListBuffer
+import org.apache.spark.sql.types.IntegerType
 
 
 class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
@@ -42,78 +43,41 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
   var schemaCache: StructType = null
 
   override def schema: StructType = {
-    val SCAN_COUNT = 10
+    val SCAN_COUNT = config.scanCount
     
     if (schemaCache == null || schemaCache.isEmpty) {
 
-      val client = new AerospikeClient("127.0.0.1",3000)//AerospikeConnection.getClient(config)
+      val client = AerospikeConnection.getClient(config) 
       
       var fields = collection.mutable.Map[String,StructField]()
-  		fields += "namespace" -> StructField("namespace", StringType, false)
-  		fields += "set" -> StructField("set", StringType, true)
-  		fields += "digest" -> StructField("digest", BinaryType, false)
   		fields += "key" -> StructField("key", StringType, true)
+  		fields += "digest" -> StructField("digest", BinaryType, false)
+//  		fields += "expiration" -> StructField("expiration", IntegerType, true)
+//  		fields += "generation" -> StructField("generation", IntegerType, true)
      
-  		var stmt = new Statement();
-  		stmt.setNamespace(config.get(AerospikeConfig.NameSpace).asInstanceOf[String]);
-  		stmt.setSetName(config.get(AerospikeConfig.SetName).asInstanceOf[String]);
-//  		val binAny = config.getIfNotEmpty(AerospikeConfig.BinList, null)
-//  		if (binAny != null){
-//  		  val binString = binAny.asInstanceOf[String]
-//  		  val binNames = binString.split(",")
-//  		  stmt.setBinNames(binNames:_*);
+//  		var stmt = new Statement();
+//  		stmt.setNamespace(config.get(AerospikeConfig.NameSpace).asInstanceOf[String]);
+//  		stmt.setSetName(config.get(AerospikeConfig.SetName).asInstanceOf[String]);
+//  		var recordSet = client.query(null, stmt)
+//  		    
+//  		try{
+//  		  val sample = recordSet.take(SCAN_COUNT)
+//  			sample.foreach { keyRecord => 
+//    
+//        keyRecord.record.bins.foreach { bin =>
+//          val binVal = bin._2
+//          val binName = bin._1
+//          val field = TypeConverter.valueToSchema(bin)
+//          
+//            fields.get(binName) match {
+//              case Some(e) => fields.update(binName, field)
+//              case None    => fields += binName -> field
+//            }
+//          }
+//  			}
+//  		} finally {
+//  			recordSet.close();
 //  		}
-  		println("***** about to query *****")
-  		var recordSet = client.query(null, stmt)
-  		println("***** process results *****")
-  		    
-  		try{
-  		  val sample = recordSet.take(SCAN_COUNT)
-  			sample.foreach { keyRecord => 
-  			  
-       /*
-       BooleanType -> java.lang.Boolean
-       ByteType -> java.lang.Byte
-       ShortType -> java.lang.Short
-       IntegerType -> java.lang.Integer
-       FloatType -> java.lang.Float
-       DoubleType -> java.lang.Double
-       StringType -> String
-       DecimalType -> java.math.BigDecimal
-    
-       DateType -> java.sql.Date
-       TimestampType -> java.sql.Timestamp
-    
-       BinaryType -> byte array
-       ArrayType -> scala.collection.Seq (use getList for java.util.List)
-       MapType -> scala.collection.Map (use getJavaMap for java.util.Map)
-       StructType -> org.apache.spark.sql.Row
-       */
-    
-    
-        keyRecord.record.bins.foreach { bin =>
-          val binVal = bin._2
-          val binName = bin._1
-          val field = binVal match {
-            case _: java.lang.Long => StructField(binName, LongType, nullable = true)
-            case _: java.lang.Double => StructField(binName, DoubleType, nullable = true)
-            case s:String => StructField(binName, StringType, nullable = true)
-            case Map => StructField(binName, StringType, nullable = true) //TODO 
-            case List => StructField(binName, StringType, nullable = true) //TODO 
-            //case ParticleType.GEOJSON => StructField(binName, StringType, nullable = true) //TODO 
-            case Array => StructField(binName, BinaryType, nullable = true)
-            case _ => StructField(binName, BinaryType, nullable = true)
-            } 
-          
-            fields.get(binName) match {
-              case Some(e) => fields.update(binName, field)
-              case None    => fields += binName -> field
-            }
-          }
-  			}
-  		} finally {
-  			recordSet.close();
-  		}
   		
   		val fieldSeq = fields.values.toSeq
   		schemaCache = StructType(fieldSeq)
@@ -122,7 +86,7 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
   }
   
   override def buildScan(): RDD[Row] = {
-    new KeyRecordRDD(sqlContext.sparkContext, conf)
+    new KeyRecordRDD(sqlContext.sparkContext, conf, schemaCache)
   }
   
   
@@ -130,6 +94,7 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
     requiredColumns: Array[String],
     filters: Array[Filter]): RDD[Row] = {
       
+    if (filters.length >0){
       val allFilters = filters.map { _ match {
         case EqualTo(attribute, value) =>
           new Qualifier(attribute, FilterOperation.EQ, Value.get(value))
@@ -150,8 +115,10 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
         }
       }.asInstanceOf[Array[Qualifier]]
       
-      new KeyRecordRDD(sqlContext.sparkContext, conf, requiredColumns, allFilters)
-      
+      new KeyRecordRDD(sqlContext.sparkContext, conf, schemaCache, requiredColumns, allFilters)
+    } else {
+      new KeyRecordRDD(sqlContext.sparkContext, conf, schemaCache, requiredColumns)
+    }
   }
   
   

@@ -33,9 +33,18 @@ class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 	  get(AerospikeConfig.SetName).asInstanceOf[String]
 	}
 
-//	def setProperty(key:String, value:Any) {
-//	  properties += (key -> value)
-//	}
+	def seedHost(): String = {
+	  get(AerospikeConfig.SeedHost).asInstanceOf[String]
+	}
+
+	def port(): Int = {
+	  get(AerospikeConfig.Port).asInstanceOf[String].toInt
+	}
+	
+	def scanCount(): Int = {
+	  100
+	}
+	
 	
 	override def toString(): String = {
 	  var buff = new StringBuffer("[")
@@ -77,11 +86,14 @@ object AerospikeConfig {
 	val SetName = "aerospike.set"
 	defineProperty(SetName, null)
 	
-	val UpdateByKey = "aerospike.key"
+	val UpdateByKey = "aerospike.updateByKey"
 	defineProperty(UpdateByKey, null)
 	
 	val BinList = "aerospike.bins"
 	defineProperty(BinList, null)
+	
+	val SchemaScan = "aerospike.schema.scan"
+	defineProperty(SchemaScan, 100)
 	
   def apply(props: Map[String, Any], required: List[String] = defaultRequired) = {
       
@@ -121,11 +133,5 @@ object AerospikeConfig {
 	  var conf = new AerospikeConfig(seedHost, port)
 	  conf
 	}
-
-//	def newConfig(seedHost:String, port: String, namespace:String ): AerospikeConfig = {
-//	  var conf = new AerospikeConfig(seedHost, port)
-//	  conf.setProperty(AerospikeConfig.NameSpace, namespace)
-//	  conf
-//	}
 
 }

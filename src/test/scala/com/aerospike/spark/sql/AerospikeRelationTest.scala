@@ -16,13 +16,15 @@ class AerospikeRelationTest extends FlatSpec {
   var sc:SparkContext = _
   var sqlContext: SQLContext = _
   var thingsDF: DataFrame = _
+  
+  val TEST_COUNT = 100
 
   behavior of "Aerospike Relation"
   
   it should " create test data" in {
     client = AerospikeConnection.getClient("localhost", 3000)
 
-    for (i <- 1 to 100) {
+    for (i <- 1 to TEST_COUNT) {
       val key = new Key("test", "rdd-test", "rdd-test-"+i)
       client.put(null, key,
          new Bin("one", i),
@@ -31,7 +33,6 @@ class AerospikeRelationTest extends FlatSpec {
       )
     }
     
-    client.close()
   }
   
   it should " create Spark contexts" in {
@@ -53,16 +54,19 @@ class AerospikeRelationTest extends FlatSpec {
   it should " print the schema" in {
 		thingsDF.printSchema()
   }
+
+  it should " select the data unsing scan" in {
+		println(thingsDF.take(TEST_COUNT))
+  }
   
   it should " delete the test data" in {
     client = AerospikeConnection.getClient("localhost", 3000)
 
-    for (i <- 1 to 100) {
+    for (i <- 1 to TEST_COUNT) {
       val key = new Key("test", "rdd-test", "rdd-test-"+i)
       client.delete(null, key)
     }
     
-    client.close()
   }
 
 }
