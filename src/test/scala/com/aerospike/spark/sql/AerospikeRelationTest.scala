@@ -9,6 +9,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.DataFrame
+import com.aerospike.client.Value
 
 class AerospikeRelationTest extends FlatSpec {
   var client: AerospikeClient = _
@@ -23,13 +24,13 @@ class AerospikeRelationTest extends FlatSpec {
   
   it should " create test data" in {
     client = AerospikeConnection.getClient("localhost", 3000)
-
+    Value.UseDoubleType = true
     for (i <- 1 to TEST_COUNT) {
       val key = new Key("test", "rdd-test", "rdd-test-"+i)
       client.put(null, key,
          new Bin("one", i),
          new Bin("two", "two:"+i),
-         new Bin("three", i.asInstanceOf[Double])
+         new Bin("three", i.toDouble)
       )
     }
     
@@ -55,9 +56,16 @@ class AerospikeRelationTest extends FlatSpec {
 		thingsDF.printSchema()
   }
 
-  it should " select the data unsing scan" in {
-		println(thingsDF.take(TEST_COUNT))
+  it should " select the data using scan" in {
+		val result = thingsDF.take(10)
+		result.foreach(println(_))
   }
+  
+//  it should " select the data using filter on 'one'" in {
+//		thingsDF.registerTempTable("things")
+//		val filteredThings = sqlContext.sql("select * from things where one = 55")
+//		filteredThings.foreach(println(_))
+//  }
   
   it should " delete the test data" in {
     client = AerospikeConnection.getClient("localhost", 3000)

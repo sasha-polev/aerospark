@@ -12,11 +12,14 @@ import org.apache.spark.sql.types.IntegerType
 object TypeConverter {
 
   def binToValue(schema: StructType, bin: (String, Object)): Any = {
+    
 		val binVal = bin._2
 		val binName = bin._1
     val value = schema(binName).dataType match {
-		  case _: IntegerType => binVal.asInstanceOf[java.lang.Long].intValue
-		  case _ => binVal
+		  case _: LongType => binVal.asInstanceOf[java.lang.Long].longValue
+		  case _: IntegerType => binVal.asInstanceOf[java.lang.Integer].intValue
+		  case _: DoubleType => binVal.asInstanceOf[java.lang.Double].doubleValue
+		  case _ => binVal.toString()
 		}
     value
   }

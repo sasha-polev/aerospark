@@ -13,6 +13,14 @@ import org.apache.spark.sql.types.StructType
 import com.aerospike.client.cluster.Node
 import com.aerospike.client.query.Statement
 import com.aerospike.helper.query._
+import scala.collection.immutable.ListMap
+import com.aerospike.helper.query.Qualifier.FilterOperation
+import org.apache.spark.sql.sources.GreaterThan
+import com.aerospike.client.Value
+import org.apache.spark.sql.sources.GreaterThanOrEqual
+import org.apache.spark.sql.sources.LessThan
+import org.apache.spark.sql.sources.LessThanOrEqual
+import org.apache.spark.sql.sources.EqualTo
 
 
 case class AerospikePartition(index: Int,
@@ -24,7 +32,7 @@ class KeyRecordRDD(
                     val aerospikeConfig: AerospikeConfig,
                     val schema: StructType = null,
                     val requiredColumns: Array[String] = null,
-                    val qualifiers: Array[Qualifier] = null
+                    val filters: Array[Filter] = null
                     ) extends RDD[Row](sc, Seq.empty) with Logging {  
   
 
@@ -53,12 +61,39 @@ class KeyRecordRDD(
     val client = AerospikeConnection.getClient(aerospikeConfig)
     val node = client.getNode(partition.host);
     
-    val kri = queryEngine.select(stmt, false, node, qualifiers: _*)
+    var kri: KeyRecordIterator = null
+    
+    if (filters != null && filters.length > 0){
+      val qualifiers = filters.map { phil => filterToQualifier(phil) }
+      kri = queryEngine.select(stmt, false, node, qualifiers: _*)
+    } else {
+      kri = queryEngine.select(stmt, false, node)
+    }
 
     context.addTaskCompletionListener(context => { kri.close() })
     
     new RowIterator(kri, schema)
   }
+  
+    private def filterToQualifier(filter: Filter) = filter match {                                 
+    case EqualTo(attribute, value) =>
+          new Qualifier(attribute, FilterOperation.EQ, Value.get(value))
+
+        case GreaterThanOrEqual(attribute, value) =>
+          new Qualifier(attribute, FilterOperation.GTEQ, Value.get(value))
+
+        case GreaterThan(attribute, value) =>
+          new Qualifier(attribute, FilterOperation.GT, Value.get(value))
+
+        case LessThanOrEqual(attribute, value) =>
+          new Qualifier(attribute, FilterOperation.LTEQ, Value.get(value))
+
+        case LessThan(attribute, value) =>
+          new Qualifier(attribute, FilterOperation.LT, Value.get(value))
+
+        case _ => null            
+  }    
+
 }
 
 class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType) extends Iterator[org.apache.spark.sql.Row] {
@@ -69,27 +104,32 @@ class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType) extends 
      
       def next: org.apache.spark.sql.Row = {
          val kr = kri.next()
+         val expiration: Int = kr.record.expiration
+         val generation: Int = kr.record.generation
+         val ttl: Int = kr.record.getTimeToLive
          var fields = scala.collection.mutable.MutableList[Any](
             kr.key.userKey,
-            kr.key.digest
-//            kr.record.expiration.toInt,
-//            kr.record.generation.toInt
+            kr.key.digest,
+            expiration,
+            generation,
+            ttl
             )
 
-//        val fieldNames = schema.fields.map { field => field.name}.toSet
-//        
-//        val binsOnly = fieldNames.diff(RowIterator.metaFields)
-//          
-//        binsOnly.foreach { field => 
-//          val value = TypeConverter.binToValue(schema, (field, kr.record.bins.get(field)))
-//          fields += value
-//        }
+        val fieldNames = schema.fields.map { field => field.name}.toSet
          
+        // remove the meta data and sort the bins by names
+        val binsOnly = fieldNames.diff(RowIterator.metaFields).toSeq.sortWith(_ < _)
+          
+        binsOnly.foreach { field => 
+          val value = TypeConverter.binToValue(schema, (field, kr.record.bins.get(field)))
+          fields += value
+        }
+        
         val row = Row.fromSeq(fields.toSeq)
         row
       }
 }
 
 object  RowIterator {
-  val metaFields = Set("key","digest", "expiration", "generation")
+  val metaFields = Set("key","digest", "expiration", "generation", "ttl")
 }
