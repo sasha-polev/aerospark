@@ -10,6 +10,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.DataFrame
 import com.aerospike.client.Value
+import org.apache.spark.sql.SaveMode
 
 class AerospikeRelationTest extends FlatSpec {
   var client: AerospikeClient = _
@@ -57,7 +58,7 @@ class AerospikeRelationTest extends FlatSpec {
   }
 
   it should " select the data using scan" in {
-		val result = thingsDF.take(10)
+		val result = thingsDF.take(50)
 		result.foreach(println(_))
   }
   
@@ -66,7 +67,43 @@ class AerospikeRelationTest extends FlatSpec {
 //		val filteredThings = sqlContext.sql("select * from things where one = 55")
 //		filteredThings.foreach(println(_))
 //  }
-  
+
+  it should " save with overwrite" in {
+      thingsDF.write.
+        mode(SaveMode.Overwrite).
+        format("com.aerospike.spark.sql").
+        option("aerospike.seedhost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", "test").
+						option("aerospike.set", "rdd-test").
+						option("aerospike.updateByDigest", "__digest").
+        save()                
+  }
+
+  it should " save with ignore" in {
+      thingsDF.write.
+        mode(SaveMode.Ignore).
+        format("com.aerospike.spark.sql").
+        option("aerospike.seedhost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", "test").
+						option("aerospike.set", "rdd-test").
+						option("aerospike.updateByDigest", "__digest").
+        save()                
+  }
+
+  it should " save with append" in {
+      thingsDF.write.
+        mode(SaveMode.Append).
+        format("com.aerospike.spark.sql").
+        option("aerospike.seedhost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", "test").
+						option("aerospike.set", "rdd-test").
+						option("aerospike.updateByDigest", "__digest").
+        save()                
+  }
+
   it should " delete the test data" in {
     client = AerospikeConnection.getClient("localhost", 3000)
 

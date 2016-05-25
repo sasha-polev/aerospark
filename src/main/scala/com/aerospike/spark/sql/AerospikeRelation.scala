@@ -46,7 +46,7 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
   var schemaCache: StructType = null
 
   override def schema: StructType = {
-    val SCAN_COUNT = config.scanCount
+    val SCAN_COUNT = config.schemaScan()
     
     if (schemaCache == null || schemaCache.isEmpty) {
 
@@ -54,11 +54,11 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
       
       var bins = collection.mutable.Map[String,StructField]()
       var fields = ListBuffer[StructField]()
-  		fields += StructField("key", StringType, true)
-  		fields += StructField("digest", BinaryType, false)
-  		fields += StructField("expiration", IntegerType, false)
-  		fields += StructField("generation", IntegerType, false)
-  		fields += StructField("ttl", IntegerType, false)
+  		fields += StructField(config.keyColumn(), StringType, true)
+  		fields += StructField(config.digestColumn(), BinaryType, false)
+  		fields += StructField(config.expiryColumn(), IntegerType, false)
+  		fields += StructField(config.generationColumn(), IntegerType, false)
+  		fields += StructField(config.ttlColumn(), IntegerType, false)
      
   		var stmt = new Statement();
   		stmt.setNamespace(config.get(AerospikeConfig.NameSpace).asInstanceOf[String]);

@@ -1,18 +1,16 @@
 
 package com.aerospike.spark.sql
 
-import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.sources.RelationProvider
-import org.apache.spark.sql.sources.SchemaRelationProvider
-import org.apache.spark.sql.sources.BaseRelation
-import org.apache.spark.sql.sources.CreatableRelationProvider
-
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.SaveMode
+import org.apache.spark.Logging
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
-
-import org.apache.spark.Logging
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.sources.BaseRelation
+import org.apache.spark.sql.sources.CreatableRelationProvider
+import org.apache.spark.sql.sources.RelationProvider
+import org.apache.spark.sql.sources.SchemaRelationProvider
+import org.apache.spark.sql.types.StructType
 
 import com.aerospike.client.policy.WritePolicy
 
@@ -28,11 +26,7 @@ with CreatableRelationProvider{
 					parameters.getOrElse(AerospikeConfig.Port, sys.error(AerospikeConfig.Port + " must be specified"))
 					parameters.getOrElse(AerospikeConfig.NameSpace, sys.error(AerospikeConfig.NameSpace + " must be specified"))
 					logInfo("Creating Aerospike relation for " + AerospikeConfig.NameSpace +":"+ AerospikeConfig.SetName)
-					val requiredPramaters = List(AerospikeConfig.SeedHost, 
-							AerospikeConfig.Port,
-							AerospikeConfig.NameSpace)
-					val conf = AerospikeConfig.apply(parameters, 
-							requiredPramaters)
+					val conf = AerospikeConfig.apply(parameters)
 					val ref = new AerospikeRelation(conf, null)(sqlContext)
 					return ref
 	}
@@ -43,37 +37,40 @@ with CreatableRelationProvider{
 			parameters: Map[String, String],
 			data: DataFrame): BaseRelation = {
 
-					val requiredPramaters = List(AerospikeConfig.SeedHost, 
-							AerospikeConfig.Port,
-							AerospikeConfig.NameSpace)
-							val conf = AerospikeConfig.apply(parameters, 
-									requiredPramaters)
+			val conf = AerospikeConfig.apply(parameters)
 
-							checkWriteConf(mode, conf)
+			val wp = writePolicy(mode, conf)
 
-							saveDataFrame(data, mode, conf)
+			saveDataFrame(data, mode, conf, wp)
 
-							createRelation(sqlContext, parameters)
+			createRelation(sqlContext, parameters)
 	}
 
-	private def checkWriteConf(mode: SaveMode, config: AerospikeConfig) = {
-			val hasUpdateByKey = !config.get(AerospikeConfig.UpdateByKey).asInstanceOf[String].isEmpty()
+	private def writePolicy(mode: SaveMode, config: AerospikeConfig): WritePolicy = {
+			val hasUpdateByKey = config.get(AerospikeConfig.UpdateByKey) != null
+			val hasUpdateByDigest = config.get(AerospikeConfig.UpdateByDigest) != null
+      val hasUpdate = hasUpdateByKey || hasUpdateByDigest
 
-					if(hasUpdateByKey) mode match {
-					case SaveMode.ErrorIfExists | SaveMode.Ignore =>
-					sys.error("updateByKey can only be used with SaveMode's Overwrite & Append")
-					case _ => // continue
-					}
+    if(hasUpdateByDigest && hasUpdateByKey){
+      sys.error("Cannot use hasUpdateByKey and hasUpdateByDigest configuration together")
+    }
+			
+		 mode match {
+			case SaveMode.ErrorIfExists => new WritePolicy() // TODO
+			case SaveMode.Ignore => new WritePolicy() // TODO
+			case SaveMode.Overwrite => new WritePolicy() // TODO
+			case SaveMode.Append => new WritePolicy() // TODO
+		}
 	}
 
-	def saveDataFrame(data: DataFrame, mode: SaveMode, config: AerospikeConfig){
+	def saveDataFrame(data: DataFrame, mode: SaveMode, config: AerospikeConfig, writePolicy: WritePolicy){
 		val schema = data.schema
 				data.foreachPartition { iterator =>
-				savePartition(iterator, schema, mode, config) }
+				savePartition(iterator, schema, mode, config, writePolicy) }
 	}
 
 	private def savePartition(iterator: Iterator[Row],
-			schema: StructType, mode: SaveMode, config: AerospikeConfig): Unit = {  
+			schema: StructType, mode: SaveMode, config: AerospikeConfig, writePolicy: WritePolicy): Unit = {  
 
 					logDebug("fetch client to save partition")
 					val client = AerospikeConnection.getClient(config)

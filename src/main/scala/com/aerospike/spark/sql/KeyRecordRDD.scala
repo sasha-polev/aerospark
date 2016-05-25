@@ -7,20 +7,19 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.StructType
-
-import com.aerospike.client.cluster.Node
-import com.aerospike.client.query.Statement
-import com.aerospike.helper.query._
-import scala.collection.immutable.ListMap
-import com.aerospike.helper.query.Qualifier.FilterOperation
 import org.apache.spark.sql.sources.GreaterThan
-import com.aerospike.client.Value
 import org.apache.spark.sql.sources.GreaterThanOrEqual
 import org.apache.spark.sql.sources.LessThan
 import org.apache.spark.sql.sources.LessThanOrEqual
-import org.apache.spark.sql.sources.EqualTo
+import org.apache.spark.sql.types.StructType
+
+import com.aerospike.client.Value
+import com.aerospike.client.cluster.Node
+import com.aerospike.client.query.Statement
+import com.aerospike.helper.query._
+import com.aerospike.helper.query.Qualifier.FilterOperation
 
 
 case class AerospikePartition(index: Int,
@@ -55,7 +54,18 @@ class KeyRecordRDD(
     val stmt = new Statement()
     stmt.setNamespace(aerospikeConfig.namespace())
     stmt.setSetName(aerospikeConfig.set())
-    //stmt.setBinNames(bins: _*) TODO
+
+    val metaFields = Set(aerospikeConfig.keyColumn(),
+        aerospikeConfig.digestColumn(), 
+        aerospikeConfig.expiryColumn(), 
+        aerospikeConfig.generationColumn(), 
+        aerospikeConfig.ttlColumn())
+
+    if (requiredColumns != null && requiredColumns.length > 0){
+      //val binsOnly = fieldNames.diff(metaFields).toSeq.sortWith(_ < _)
+      val binsOnly = requiredColumns.toSet.diff(metaFields).toSeq.sortWith(_ < _)
+      stmt.setBinNames(binsOnly: _*) 
+    }
     
     val queryEngine = AerospikeConnection.getQueryEngine(aerospikeConfig)
     val client = AerospikeConnection.getClient(aerospikeConfig)
@@ -72,7 +82,8 @@ class KeyRecordRDD(
 
     context.addTaskCompletionListener(context => { kri.close() })
     
-    new RowIterator(kri, schema)
+    
+    new RowIterator(kri, schema, metaFields)
   }
   
     private def filterToQualifier(filter: Filter) = filter match {                                 
@@ -96,7 +107,7 @@ class KeyRecordRDD(
 
 }
 
-class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType) extends Iterator[org.apache.spark.sql.Row] {
+class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType, metaFields: Set[String]) extends Iterator[org.apache.spark.sql.Row] {
      
       def hasNext: Boolean = {
         kri.hasNext()
@@ -118,7 +129,7 @@ class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType) extends 
         val fieldNames = schema.fields.map { field => field.name}.toSet
          
         // remove the meta data and sort the bins by names
-        val binsOnly = fieldNames.diff(RowIterator.metaFields).toSeq.sortWith(_ < _)
+        val binsOnly = fieldNames.diff(metaFields).toSeq.sortWith(_ < _)
           
         binsOnly.foreach { field => 
           val value = TypeConverter.binToValue(schema, (field, kr.record.bins.get(field)))
@@ -130,6 +141,3 @@ class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType) extends 
       }
 }
 
-object  RowIterator {
-  val metaFields = Set("key","digest", "expiration", "generation", "ttl")
-}

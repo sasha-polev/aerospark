@@ -4,6 +4,7 @@ import scala.collection.immutable.Map
 
 class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 
+  
 	def this(seedHost: String, port: String) {
     this( Map(AerospikeConfig.SeedHost -> seedHost, AerospikeConfig.Port -> port.toInt) )
   }
@@ -38,11 +39,31 @@ class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 	}
 
 	def port(): Int = {
-	  get(AerospikeConfig.Port).asInstanceOf[String].toInt
+	  get(AerospikeConfig.Port).asInstanceOf[Int]
 	}
 	
-	def scanCount(): Int = {
-	  100
+	def schemaScan(): Int = {
+	  get(AerospikeConfig.SchemaScan).asInstanceOf[Int]
+	}
+	
+	def keyColumn(): String = {
+	  get(AerospikeConfig.KeyColumn).asInstanceOf[String]
+	}
+	
+	def digestColumn(): String = {
+	  get(AerospikeConfig.DigestColumn).asInstanceOf[String]
+	}
+	
+	def expiryColumn(): String = {
+	  get(AerospikeConfig.ExpiryColumn).asInstanceOf[String]
+	}
+	
+	def generationColumn(): String = {
+	  get(AerospikeConfig.GenerationColumn).asInstanceOf[String]
+	}
+	
+	def ttlColumn(): String = {
+	  get(AerospikeConfig.TTLColumn).asInstanceOf[String]
 	}
 	
 	
@@ -65,14 +86,22 @@ class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 }
 
 object AerospikeConfig {
-	private val defaultValues = scala.collection.mutable.Map[String, Any](AerospikeConfig.SeedHost -> "127.0.0.1", AerospikeConfig.Port -> 3000)
-	private val defaultRequired = List(SeedHost, Port)
-
+	private val defaultValues = scala.collection.mutable.Map[String, Any](
+	        AerospikeConfig.SeedHost -> "127.0.0.1", 
+	        AerospikeConfig.Port -> 3000,
+	        AerospikeConfig.SchemaScan -> 100,
+	        AerospikeConfig.NameSpace -> "test",
+	        AerospikeConfig.KeyColumn -> "__key",
+	        AerospikeConfig.DigestColumn -> "__digest",
+	        AerospikeConfig.ExpiryColumn -> "__expiry",
+	        AerospikeConfig.GenerationColumn -> "__generation",
+	        AerospikeConfig.TTLColumn -> "__ttl")
+	        
 	final val DEFAULT_READ_PURPOSE = "spark_read"
 	final val DEFAULT_WRITE_PURPOSE = "spark_write"
 
 	val SeedHost = "aerospike.seedhost"
-	defineProperty(SeedHost, null)
+	defineProperty(SeedHost, "127.0.0.1")
 
 	val Port = "aerospike.port"
 	defineProperty(Port, 3000)
@@ -81,7 +110,7 @@ object AerospikeConfig {
 	defineProperty(TimeOut, 1000)
 	
 	val NameSpace = "aerospike.namespace"
-	defineProperty(NameSpace, null)
+	defineProperty(NameSpace, "test")
 	
 	val SetName = "aerospike.set"
 	defineProperty(SetName, null)
@@ -89,30 +118,40 @@ object AerospikeConfig {
 	val UpdateByKey = "aerospike.updateByKey"
 	defineProperty(UpdateByKey, null)
 	
-	val BinList = "aerospike.bins"
-	defineProperty(BinList, null)
+	val UpdateByDigest = "aerospike.updateByDigest"
+	defineProperty(UpdateByDigest, null)
 	
 	val SchemaScan = "aerospike.schema.scan"
 	defineProperty(SchemaScan, 100)
 	
-  def apply(props: Map[String, Any], required: List[String] = defaultRequired) = {
+	val KeyColumn = "aerospike.keyColumn"
+	defineProperty(KeyColumn, "__key")
+
+	val DigestColumn = "aerospike.digestColumn"
+	defineProperty(DigestColumn, "__digest")
+
+	val ExpiryColumn = "aerospike.expiryColumn"
+	defineProperty(ExpiryColumn, "__expiry")
+
+	val GenerationColumn = "aerospike.generationColumn"
+	defineProperty(GenerationColumn, "__generation")
+
+	val TTLColumn = "aerospike.ttlColumn"
+	defineProperty(TTLColumn, "__ttl")
+
+	def apply(props: Map[String, Any] = null) = {
+    if (props != null) {
+      val ciProps = props.map(kv => kv.copy(_1 = kv._1.toLowerCase))
       
-    val ciProps = props.map(kv => kv.copy(_1 = kv._1.toLowerCase))
-    val ciRequired = required.map(x => x.toLowerCase)
-    
-    ciProps.keys.filter(_.startsWith("aerospike.")).foreach { x =>
-      if(!defaultValues.contains(x))
-        sys.error(s"Unknown Aerospike specific option : $x")
+      ciProps.keys.filter(_.startsWith("aerospike.")).foreach { x =>
+        if(!defaultValues.contains(x))
+          sys.error(s"Unknown Aerospike specific option : $x")
+      }
+      val mergedProperties = defaultValues.toMap ++ ciProps
+      new AerospikeConfig(mergedProperties)
+    } else {
+      new AerospikeConfig(defaultValues.toMap)
     }
-  
-    // Check for required properties
-    require(
-    ciRequired.forall(ciProps.isDefinedAt),
-    s"Not all required properties are defined ! : ${
-      required.diff(
-        props.keys.toList.intersect(required))
-    }")
-    new AerospikeConfig(ciProps)
   }
 
 
