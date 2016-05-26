@@ -8,6 +8,8 @@ import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.Row
+import com.aerospike.client.Bin
 
 object TypeConverter {
 
@@ -22,6 +24,18 @@ object TypeConverter {
 		  case _ => binVal.toString()
 		}
     value
+  }
+  
+  def fieldToBin(schema: StructType, row:Row, field:String): Bin = {
+    
+		val value = row(schema.fieldIndex(field))
+    val binValue = schema(field).dataType match {
+		  case _: LongType => value.asInstanceOf[java.lang.Long]
+		  case _: IntegerType => value.asInstanceOf[java.lang.Integer]
+		  case _: DoubleType => value.asInstanceOf[java.lang.Double]
+		  case _ => value.toString()
+		}
+    new Bin(field, binValue)
   }
   
 	def valueToSchema(bin: (String, Object)): StructField = {

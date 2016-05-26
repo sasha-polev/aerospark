@@ -62,7 +62,6 @@ class KeyRecordRDD(
         aerospikeConfig.ttlColumn())
 
     if (requiredColumns != null && requiredColumns.length > 0){
-      //val binsOnly = fieldNames.diff(metaFields).toSeq.sortWith(_ < _)
       val binsOnly = requiredColumns.toSet.diff(metaFields).toSeq.sortWith(_ < _)
       stmt.setBinNames(binsOnly: _*) 
     }
