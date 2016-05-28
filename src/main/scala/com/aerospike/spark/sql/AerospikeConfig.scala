@@ -1,6 +1,8 @@
 package com.aerospike.spark.sql
 
 import scala.collection.immutable.Map
+import com.aerospike.client.policy.CommitLevel
+import com.aerospike.client.policy.GenerationPolicy
 
 class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 
@@ -107,7 +109,16 @@ object AerospikeConfig {
 	defineProperty(Port, 3000)
 
 	val TimeOut = "aerospike.timeout"
-	defineProperty(TimeOut, 1000)
+	defineProperty(TimeOut, 0)
+	
+	val sendKey = "aerospike.sendKey"
+	defineProperty(sendKey, false)
+	
+	val commitLevel = "aerospike.commitLevel"
+	defineProperty(commitLevel, CommitLevel.COMMIT_ALL)
+	
+	val generationPolicy = "aerospike.generationPolicy"
+	defineProperty(generationPolicy, GenerationPolicy.NONE)
 	
 	val NameSpace = "aerospike.namespace"
 	defineProperty(NameSpace, "test")

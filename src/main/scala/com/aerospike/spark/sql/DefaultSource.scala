@@ -18,6 +18,9 @@ import com.aerospike.client.Key
 import com.aerospike.client.Value
 import com.aerospike.client.Bin
 import scala.collection.mutable.ListBuffer
+import com.aerospike.client.AerospikeException
+import com.aerospike.client.ResultCode
+import com.aerospike.client.policy.GenerationPolicy
 
 
 
@@ -44,27 +47,12 @@ with CreatableRelationProvider{
 
 			val conf = AerospikeConfig.apply(parameters)
 
-			val wp = writePolicy(mode, conf)
-
-			saveDataFrame(data, mode, conf, wp)
+			saveDataFrame(data, mode, conf)
 
 			createRelation(sqlContext, parameters)
 	}
 
-	private def writePolicy(mode: SaveMode, config: AerospikeConfig): WritePolicy = {
-			
-		val policy = new WritePolicy
-		mode match {
-			case SaveMode.ErrorIfExists => policy.recordExistsAction = RecordExistsAction.CREATE_ONLY
-			case SaveMode.Ignore => policy.recordExistsAction = RecordExistsAction.CREATE_ONLY
-			case SaveMode.Overwrite => policy.recordExistsAction = RecordExistsAction.UPDATE
-			case SaveMode.Append => policy.recordExistsAction = RecordExistsAction.UPDATE_ONLY
-		}
-		policy
-		
-	}
-
-	def saveDataFrame(data: DataFrame, mode: SaveMode, config: AerospikeConfig, writePolicy: WritePolicy){
+	def saveDataFrame(data: DataFrame, mode: SaveMode, config: AerospikeConfig){
 		val schema = data.schema
 				data.foreachPartition { iterator =>
 				savePartition(iterator, schema, mode, config) }
@@ -89,16 +77,33 @@ with CreatableRelationProvider{
       sys.error("Cannot use hasUpdateByKey and hasUpdateByDigest configuration together")
     }
 	  
-		val policy = writePolicy(mode, config)
-
-		logInfo("fetch client to save partition")
+		logDebug("fetch client to save partition")
 		val client = AerospikeConnection.getClient(config)
+
+		logDebug("creating write policy")
+		
+		val policy = new WritePolicy(client.writePolicyDefault)
+		
+		mode match {
+			case SaveMode.ErrorIfExists => policy.recordExistsAction = RecordExistsAction.CREATE_ONLY
+			case SaveMode.Ignore => policy.recordExistsAction = RecordExistsAction.CREATE_ONLY
+			case SaveMode.Overwrite => policy.recordExistsAction = RecordExistsAction.REPLACE
+			case SaveMode.Append => policy.recordExistsAction = RecordExistsAction.UPDATE_ONLY
+		}
+
+		val genPol = config.get(AerospikeConfig.generationPolicy)
+		
+		if (genPol != null) {
+		  policy.generationPolicy = genPol.asInstanceOf[GenerationPolicy]
+		}
+		
 		var counter = 0
+		
 		while (iterator.hasNext) {
 			val row = iterator.next()
-			// save row
 			
 			var key: Key = null
+			
 			if (hasUpdateByDigest) {
 			  val digest = row(schema.fieldIndex(config.digestColumn)).asInstanceOf[Array[Byte]]
 			  key = new Key(config.namespace(), digest, null, null)
@@ -112,12 +117,44 @@ with CreatableRelationProvider{
 			  val bin = TypeConverter.fieldToBin(schema, row, binName)
 			  bins += bin
 			}
-			
-			client.put(policy, key, bins.toArray:_*)
+			try {
+			  
+			  if (policy.generationPolicy == GenerationPolicy.EXPECT_GEN_EQUAL){
+			    policy.generation = row(schema.fieldIndex(config.generationColumn)).asInstanceOf[java.lang.Integer].intValue
+			  }
+			  
+			  client.put(policy, key, bins.toArray:_*)
 				
-			counter += 1;         
+			  counter += 1;  
+			} catch {
+        case ex: AerospikeException => {
+            mode match {
+        			case SaveMode.ErrorIfExists => {
+        			  if (ex.getResultCode == ResultCode.KEY_EXISTS_ERROR){
+        			    val message = ex.getMessage
+        			    logDebug(s"Key:$key Error:$message")
+        			    throw ex
+        			  }
+        			}
+        			case SaveMode.Ignore => {
+        			  if (ex.getResultCode == ResultCode.KEY_EXISTS_ERROR){
+        			    val message = ex.getMessage
+        			    logDebug(s"Ignoring existing Key:$key")
+        			    
+        			  }
+        			}
+        			//case SaveMode.Overwrite => { }
+        			case SaveMode.Append => {
+        			  if (ex.getResultCode == ResultCode.KEY_NOT_FOUND_ERROR){
+        			    val message = ex.getMessage
+        			    logDebug(s"Ignoring missing Key:$key")
+        			  }
+        			}
+        		}   
+        }
+      } 
 		}
-		logInfo(s"Completed writing partition of $counter rows")
+		logDebug(s"Completed writing partition of $counter rows")
 
 	}
 	

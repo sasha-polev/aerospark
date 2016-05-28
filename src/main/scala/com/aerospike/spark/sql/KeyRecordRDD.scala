@@ -55,14 +55,11 @@ class KeyRecordRDD(
     stmt.setNamespace(aerospikeConfig.namespace())
     stmt.setSetName(aerospikeConfig.set())
 
-    val metaFields = Set(aerospikeConfig.keyColumn(),
-        aerospikeConfig.digestColumn(), 
-        aerospikeConfig.expiryColumn(), 
-        aerospikeConfig.generationColumn(), 
-        aerospikeConfig.ttlColumn())
+    val metaFields = TypeConverter.metaFields(aerospikeConfig)
 
     if (requiredColumns != null && requiredColumns.length > 0){
-      val binsOnly = requiredColumns.toSet.diff(metaFields).toSeq.sortWith(_ < _)
+      val binsOnly = TypeConverter.binNamesOnly(requiredColumns, metaFields)
+//      val binsOnly = requiredColumns.toSet.diff(metaFields).toSeq.sortWith(_ < _)
       stmt.setBinNames(binsOnly: _*) 
     }
     
@@ -128,7 +125,7 @@ class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType, metaFiel
         val fieldNames = schema.fields.map { field => field.name}.toSet
          
         // remove the meta data and sort the bins by names
-        val binsOnly = fieldNames.diff(metaFields).toSeq.sortWith(_ < _)
+        val binsOnly = TypeConverter.binNamesOnly(fieldNames.toArray, metaFields)
           
         binsOnly.foreach { field => 
           val value = TypeConverter.binToValue(schema, (field, kr.record.bins.get(field)))
