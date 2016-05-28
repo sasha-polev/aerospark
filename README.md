@@ -1,103 +1,38 @@
-Aerospike Spark Connector
-===============
+# Aerospike Spark Connector
+The Aerospike spark connector provides features to represent data stored in Aerospike as a DataFrame in Spark.
+ 
+Aerospike Spark Connector includes:
+- Reading from Aerospike to a DataFrame
+- Saving a DataFrame to Aerospike
+- Spark SQL multiple filters pushed down to the Aerospike cluster
 
-NOTE: this is an experimental version for Spark 1.3.0 and Aerospike 3.1.0 API
---------------------------------------------------------------------------------------------------
+## How to build
 
-For version that requires Spark 1.2.0 please use [Spark-1.2.0](https://github.com/sasha-polev/aerospark/tree/Spark-1.2.0) tag
---------------------------------------------------------------------------------------------------
+The source code for this solution is available on GitHub at https://github.com/citrusleaf/aerospark/ 
 
-Spark glue to efficiently read data from Aerospike
 
-  * Creates schema RDD from AQL statement (including determining datatypes on the single row query) or just RDD[Row] if not to be used with SparkSQL context
-  * Queries local Aerospike nodes in parallel (allows parrallel reads from single server for range queries)
-  
-Example use:
+This Library requires Java JDK 7+ Scala 2.10, SBT 0.13 and the `aerospike-helper-java-<version>.jar` 
 
-```sql
-import com.osscube.spark.aerospike.rdd._;import org.apache.spark.sql._
-val sqlContext = new SQLContext(sc)
-val aero  = sc.aeroSInput("192.168.142.162:3000",
- "select column1,column1,intColumn1 from test.one_million where intColumn1 between -10000000 and 10000000", sqlContext ,6)
-aero.registerTempTable("aero")
-sqlContext.sql("select avg(intColumn1) from aero where intColumn1 < 0").collect
+Note that this will build the JAR `aerospike-helper-java-<version>.jar` and install it in your local Maven repository. 
+
+Clone the [Aerospike Spark](https://github.com/citrusleaf/aerospark/.git) repository using this command:
+```bash
+$ git clone https://github.com/citrusleaf/aerospark/.git
 ```
+Aerospike Spark depends on the [Aerospike Helper](https://github.com/aerospike-labs/aerospike-helper.git) project. Before you can build Aerospike JDBC you will need to add it's GitHub repository as a submodule. 
 
-(Assumes there is an numeric index on intColumn1, creates 6 partitions per server)
-
-Other way to create and SQL RDD is to use  method on SQLContext itself:
-
-```sql
-import com.osscube.spark.aerospike.rdd._;import org.apache.spark.sql._
-val sqlContext = new SQLContext(sc)
-val aero = sqlContext.aeroRDD("192.168.142.162:3000",
- "select column1,column1,intColumn1 from test.one_million where intColumn1 between -10000000 and 10000000")
-aero.count
+Update the submodule dependency for `aerospike-helper`:
+```bash
+$ git submodule update --init
 ```
-
-Spark SQL use
--------------
-
-New Spark 1.2.+ Data Sources API allows integration with Spark SQL CLI and Thrift/JDBC server:
-
-Run SQL CLI or server with `--jars` pointing to the library (similar to Spark CLI):
-
+Build the [Aerospike Helper](https://github.com/aerospike-labs/aerospike-helper.git) this command:
+```bash
+$ mvn clean install -DskipTests
 ```
-spark-sql --jars  <path to build>/aerospike-spark-0.2-SNAPSHOT-jar-with-dependencies.jar
+To build [Aerospike Spark](https://github.com/citrusleaf/aerospark/.git) use this command:
+```bash
+$ sbt assembly
 ```
+A JAR file will be produced in the `target` directory : `aerospike-jdbc-<version>.jar`. This JAR contains the JDBC driver and all the dependencies.
 
-Then you can use statements like the following:
-
-
-```sql
-CREATE TEMPORARY TABLE aero
-USING com.osscube.spark.aerospike.rdd
-OPTIONS (initialHost "192.168.142.162:3000",
-select "select column1,column2,intColumn1 from test.one_million where intColumn1 between -10000000 and 10000000",
-partitionsPerServer "2");
-```
-
-or
-
-```sql
-CREATE TEMPORARY TABLE aero
-USING com.osscube.spark.aerospike.rdd
-OPTIONS (initialHost "192.168.142.162:3000",
-select "select * from test.one_million");
-```
-
-When you do subsequent selects best efforts will be made to push down at least (and at most) one predicate to Aerospike, if index is present.
-
-```sql
-select count(distinct column1) from aero where column1  = 'G';
-```
-
-or
-
-```sql
-select count(distinct column2) from aero where  intColumn1  > -1000000 and intColumn1 < 100000;
-```
-
-This version is tested with Aerospike 3.5 and has an optional parameter useUdfWithoutIndexQuery to allow UDF filtering even if no index is used in a query, e.x:
-
-```sql
-val sqlContext = new org.apache.spark.sql.hive.HiveContext(sc)
-sqlContext.sql("CREATE TEMPORARY TABLE aero USING com.osscube.spark.aerospike.rdd OPTIONS (initialHost \"192.168.142.162:3000\", select \"select * from test.one_million\", useUdfWithoutIndexQuery \"true\")")
-```
-
-NOTE: there is no explicit methods to write RDD back to Aerospike, but this can be achieved using code like this:
-
-```
-import com.aerospike.client.async.AsyncClient
-import com.aerospike.client._
-
-val rdd = sc.parallelize(List("1", "2", "3", "4", "5", "6", "7", "8", "9"), 3)
-rdd.foreachPartition{x =>
-	val client = new AsyncClient("192.168.142.162" , 3000)
-	x.foreach{ s =>
-		client.put( client.asyncWritePolicyDefault, new Key("test", "sample", s),
-			new Bin("column1", s)
-		)
-	}
-}
-```
+## Loading and Saving DataFrames 
