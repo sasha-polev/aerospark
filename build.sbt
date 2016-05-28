@@ -18,4 +18,3 @@ libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0" % "test"
 
 resolvers += "Local Maven" at Path.userHome.asFile.toURI.toURL + ".m2/repository"
 
-unmanagedResourceDirectories in Compile += { baseDirectory.value / "udf" }
