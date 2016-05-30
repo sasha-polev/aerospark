@@ -42,7 +42,7 @@ On conclustion of the build, the uber JAR `some jar name` will be located in the
 ## Loading and Saving DataFrames 
 The Aerospike Sparke connector provides functiosn to load data from Aerospike into a DataFrame and save a DataFrames into Aerospile
 
-## Loading data
+### Loading data
 
 ```scala
 		thingsDF = sqlContext.read.
@@ -60,3 +60,62 @@ You can see that the read function is configured by a number of options, these a
 - `option("aerospike.namespace", "test")` specifies the Namespace name to be used e.g. "test"
 - `option("aerospike.set", "rdd-test")` specifies the Set to be used e.g. "rdd-test"
  
+### Saving data
+A DataFrame can be saved in Aerospike by specifying a column in the DataFrame as the Primary Key or the Digest.
+#### Saving by Digest
+
+#### Saving by Key
+In this example, the value of the primary key is specifioed by the "key" column in the DataFrame.
+```scala
+      val setName = "new-rdd-data"
+      
+      val schema = new StructType(Array(
+          StructField("key",StringType,nullable = false),
+          StructField("last",StringType,nullable = true),
+          StructField("first",StringType,nullable = true),
+          StructField("when",LongType,nullable = true)
+          )) 
+      val rows = Seq(
+          Row("Fraser_Malcolm","Fraser", "Malcolm", 1975L),
+          Row("Hawke_Bob","Hawke", "Bob", 1983L),
+          Row("Keating_Paul","Keating", "Paul", 1991L), 
+          Row("Howard_John","Howard", "John", 1996L), 
+          Row("Rudd_Kevin","Rudd", "Kevin", 2007L), 
+          Row("Gillard_Julia","Gillard", "Julia", 2010L), 
+          Row("Abbott_Tony","Abbott", "Tony", 2013L), 
+          Row("Tunrbull_Malcom","Tunrbull", "Malcom", 2015L)
+          )
+          
+      val inputRDD = sc.parallelize(rows)
+      
+      assert(sc != null)
+      
+      val newDF = sqlContext.createDataFrame(inputRDD, schema)
+  
+      newDF.write.
+        mode(SaveMode.Ignore).
+        format("com.aerospike.spark.sql").
+        option("aerospike.seedhost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", namespace).
+						option("aerospike.set", setName).
+						option("aerospike.updateByKey", "key").
+        save()       
+      
+      var key = new Key(namespace, setName, "Fraser_Malcolm")
+      var record = client.get(null, key)
+      assert(record.getString("last") == "Fraser")
+      
+      key = new Key(namespace, setName, "Hawke_Bob")
+      record = client.get(null, key)
+      assert(record.getString("first") == "Bob")
+
+      key = new Key(namespace, setName, "Gillard_Julia")
+      record = client.get(null, key)
+      assert(record.getLong("when") == 2010)
+
+      rows.foreach { row => 
+         val key = new Key(namespace, setName, row.getString(0))
+         client.delete(null, key)
+      }
+```
