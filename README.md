@@ -33,10 +33,140 @@ After cloning the repository, build the uber jar using:
 ```bash
 $ sbt assembly
 ```
-Note that during the build, a number of unit tests are run, these tests will assume an Aerospike cluster is running at "127.0.0.1" on port 3000. If you want to ignote the unit tests, use:
+Note that during the build, a number of unit tests are run, these tests will assume an Aerospike cluster is running at "127.0.0.1" on port 3000. If you want to ignore the unit tests, use:
 ```bash
-sbt 'set test in assembly := {}' clean assembly
+$ sbt 'set test in assembly := {}' clean assembly
 ```
 
-On conclustion of the build, the uber JAR `some jar name` will be located in the subdirectory `some place`.
+On conclustion of the build, the uber JAR **some jar name** will be located in the subdirectory **some place**.
 ## Loading and Saving DataFrames 
+The Aerospike Sparke connector provides functions to load data from Aerospike into a DataFrame and save a DataFrame into Aerospike
+
+### Loading data
+
+```scala
+	val thingsDF = sqlContext.read.
+		format("com.aerospike.spark.sql").
+		option("aerospike.seedhost", "127.0.0.1").
+		option("aerospike.port", "3000").
+		option("aerospike.namespace", "test").
+		option("aerospike.set", "rdd-test").
+		load 
+```
+
+You can see that the read function is configured by a number of options, these are:
+- `format("com.aerospike.spark.sql")` specifies the function library to load the DataFrame.
+- `option("aerospike.seedhost", "127.0.0.1")` specifies a seed host in the Aerospike cluster.
+- `option("aerospike.port", "3000")` specifies the port to be used
+- `option("aerospike.namespace", "test")` specifies the Namespace name to be used e.g. "test"
+- `option("aerospike.set", "rdd-test")` specifies the Set to be used e.g. "rdd-test"
+Spark SQL can be used to efficently filter (where lastName = 'Smith') Bin values represented as columns. The filter is passed down to the Aerospike cluster and filtering is done in the server. Here is an example using filtering:
+```scala
+	val thingsDF = sqlContext.read.
+		format("com.aerospike.spark.sql").
+		option("aerospike.seedhost", "127.0.0.1").
+		option("aerospike.port", "3000").
+		option("aerospike.namespace", namespace).
+		option("aerospike.set", "rdd-test").
+		load 
+	thingsDF.registerTempTable("things")
+	val filteredThings = sqlContext.sql("select * from things where one = 55")
+
+```
+
+Additional meta-data columns are automatically included when reading from Aerospike, the default names are:
+- `__key` the values of the primary key if it is stored in Aerospike
+- `__digest` the digest as Array[byte]
+- `__generation` the gereration value of the record read
+- `__expitation` the expiration epoch
+- `__ttl` the time to live value calcualed from the expiration - now
+ 
+These meta-data column name defaults can be be changed by using additional options during read or write, for example:
+```scala
+	val thingsDF = sqlContext.read.
+		format("com.aerospike.spark.sql").
+		option("aerospike.seedhost", "127.0.0.1").
+		option("aerospike.port", "3000").
+		option("aerospike.namespace", "test").
+		option("aerospike.set", "rdd-test").
+		option("aerospike.expiryColumn", "_my_expiry_column").
+		load 
+```
+
+### Saving data
+A DataFrame can be saved in Aerospike by specifying a column in the DataFrame as the Primary Key or the Digest.
+#### Saving by Digest
+In this example, the value of the digest is specified by the "__digest" column in the DataFrame.
+```scala
+	val thingsDF = sqlContext.read.
+		format("com.aerospike.spark.sql").
+		option("aerospike.seedhost", "127.0.0.1").
+		option("aerospike.port", "3000").
+		option("aerospike.namespace", namespace).
+		option("aerospike.set", "rdd-test").
+		load 
+		
+    thingsDF.write.
+        mode(SaveMode.Overwrite).
+        format("com.aerospike.spark.sql").
+        option("aerospike.seedhost", "127.0.0.1").
+		option("aerospike.port", "3000").
+		option("aerospike.namespace", namespace).
+		option("aerospike.set", "rdd-test").
+		option("aerospike.updateByDigest", "__digest").
+        save()                
+
+```
+#### Saving by Key
+In this example, the value of the primary key is specified by the "key" column in the DataFrame.
+```scala
+      val setName = "new-rdd-data"
+      
+      val schema = new StructType(Array(
+          StructField("key",StringType,nullable = false),
+          StructField("last",StringType,nullable = true),
+          StructField("first",StringType,nullable = true),
+          StructField("when",LongType,nullable = true)
+          )) 
+      val rows = Seq(
+          Row("Fraser_Malcolm","Fraser", "Malcolm", 1975L),
+          Row("Hawke_Bob","Hawke", "Bob", 1983L),
+          Row("Keating_Paul","Keating", "Paul", 1991L), 
+          Row("Howard_John","Howard", "John", 1996L), 
+          Row("Rudd_Kevin","Rudd", "Kevin", 2007L), 
+          Row("Gillard_Julia","Gillard", "Julia", 2010L), 
+          Row("Abbott_Tony","Abbott", "Tony", 2013L), 
+          Row("Tunrbull_Malcom","Tunrbull", "Malcom", 2015L)
+          )
+          
+      val inputRDD = sc.parallelize(rows)
+      
+      val newDF = sqlContext.createDataFrame(inputRDD, schema)
+  
+      newDF.write.
+        mode(SaveMode.Ignore).
+        format("com.aerospike.spark.sql").
+        option("aerospike.seedhost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", namespace).
+						option("aerospike.set", setName).
+						option("aerospike.updateByKey", "key").
+        save()       
+      
+      var key = new Key(namespace, setName, "Fraser_Malcolm")
+      var record = client.get(null, key)
+      assert(record.getString("last") == "Fraser")
+      
+      key = new Key(namespace, setName, "Hawke_Bob")
+      record = client.get(null, key)
+      assert(record.getString("first") == "Bob")
+
+      key = new Key(namespace, setName, "Gillard_Julia")
+      record = client.get(null, key)
+      assert(record.getLong("when") == 2010)
+
+      rows.foreach { row => 
+         val key = new Key(namespace, setName, row.getString(0))
+         client.delete(null, key)
+      }
+```
