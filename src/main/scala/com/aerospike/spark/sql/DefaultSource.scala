@@ -105,10 +105,12 @@ with CreatableRelationProvider{
 			var key: Key = null
 			
 			if (hasUpdateByDigest) {
-			  val digest = row(schema.fieldIndex(config.digestColumn)).asInstanceOf[Array[Byte]]
+			  val digestColumn = config.get(AerospikeConfig.UpdateByDigest).toString()
+			  val digest = row(schema.fieldIndex(digestColumn)).asInstanceOf[Array[Byte]]
 			  key = new Key(config.namespace(), digest, null, null)
 			} else {
-			  val keyObject: Object = row(schema.fieldIndex(config.keyColumn)).asInstanceOf[Object]
+			  val keyColumn = config.get(AerospikeConfig.UpdateByKey).toString()
+			  val keyObject: Object = row(schema.fieldIndex(keyColumn)).asInstanceOf[Object]
 			  key = new Key(config.namespace(), config.set(), Value.get(keyObject))
 			}
 			

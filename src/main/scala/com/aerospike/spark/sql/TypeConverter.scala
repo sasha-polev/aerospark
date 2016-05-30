@@ -1,17 +1,23 @@
 package com.aerospike.spark.sql
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.sql.types.BinaryType
-import org.apache.spark.sql.types.MapType
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.types.FloatType
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.MapType
+import org.apache.spark.sql.types.ShortType
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 
 import com.aerospike.client.Bin
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.DataFrame
 
 object TypeConverter{
   
@@ -46,8 +52,12 @@ object TypeConverter{
 		val value = row(schema.fieldIndex(field))
     val binValue = schema(field).dataType match {
 		  case _: LongType => value.asInstanceOf[java.lang.Long]
-		  case _: IntegerType => value.asInstanceOf[java.lang.Integer]
+		  case _: IntegerType => value.asInstanceOf[java.lang.Long]
+		  case _: ShortType => value.asInstanceOf[java.lang.Long]
 		  case _: DoubleType => value.asInstanceOf[java.lang.Double]
+		  case _: FloatType => value.asInstanceOf[java.lang.Double]
+		  case _: ArrayType => value
+		  case _: MapType => value
 		  case _ => value.toString()
 		}
     new Bin(field, binValue)
@@ -64,15 +74,25 @@ object TypeConverter{
 					case _: java.lang.Double => StructField(binName, DoubleType, nullable = true)
 					case _: java.lang.Float => StructField(binName, DoubleType, nullable = true)
 					case s:String => StructField(binName, StringType, nullable = true)
-//					case Map => StructField(binName, StringType, nullable = true) //TODO 
-					case Map => StructField(binName, new MapType(), nullable = true) 
-					case List => StructField(binName, StringType, nullable = true) //TODO 
+					case Map => {
+					  val aKey = valueToSchema((binName, binVal.asInstanceOf[Map[Object, Object]].keys.head))
+					  val aValue = valueToSchema((binName, binVal.asInstanceOf[Map[Object, Object]].values.head))
+					  StructField(binName, new MapType(aKey.dataType, aValue.dataType, true), nullable = true) 
+					}
+					case List => { 
+					  val newValue = binVal.asInstanceOf[java.util.List[Object]].get(0)
+					  val elementStructure = valueToSchema((binName, newValue))
+					  StructField(binName, new ArrayType(elementStructure.dataType , true), nullable = true) 
+					}
 					//case ParticleType.GEOJSON => StructField(binName, StringType, nullable = true) //TODO 
 					case Array => StructField(binName, BinaryType, nullable = true)
 					case _ => StructField(binName, BinaryType, nullable = true)
 			} 
 			field
 	}
+	
+	
+
 }
 
 
