@@ -38,7 +38,7 @@ Note that during the build, a number of unit tests are run, these tests will ass
 $ sbt 'set test in assembly := {}' clean assembly
 ```
 
-On conclustion of the build, the uber JAR `some jar name` will be located in the subdirectory `some place`.
+On conclustion of the build, the uber JAR **some jar name** will be located in the subdirectory **some place**.
 ## Loading and Saving DataFrames 
 The Aerospike Sparke connector provides functions to load data from Aerospike into a DataFrame and save a DataFrames into Aerospike
 
