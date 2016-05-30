@@ -74,6 +74,25 @@ Spark SQL can be used to efficently filter (where lastName = 'Smith') Bin values
 
 ```
 
+Additional meta-data columns are automatically included when reading from Aerospike, the devault names are:
+- `__key` the values of the primary key if it is stored in Aerospike
+- `__digest` the digest as Array[byte]
+- `__generation` the gereration value of the record read
+- `__expitation` the expiration epoch
+- `__ttl` the time to live value calcualed from the expiration - now
+ 
+These meta-data column name defaults can be be changed by using additionals options during read or write, for example:
+```scala
+	val thingsDF = sqlContext.read.
+		format("com.aerospike.spark.sql").
+		option("aerospike.seedhost", "127.0.0.1").
+		option("aerospike.port", "3000").
+		option("aerospike.namespace", "test").
+		option("aerospike.set", "rdd-test").
+		option("aerospike.expiryColumn", "_my_expiry_column").
+		load 
+```
+
 ### Saving data
 A DataFrame can be saved in Aerospike by specifying a column in the DataFrame as the Primary Key or the Digest.
 #### Saving by Digest
