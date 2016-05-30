@@ -40,30 +40,64 @@ sbt 'set test in assembly := {}' clean assembly
 
 On conclustion of the build, the uber JAR `some jar name` will be located in the subdirectory `some place`.
 ## Loading and Saving DataFrames 
-The Aerospike Sparke connector provides functiosn to load data from Aerospike into a DataFrame and save a DataFrames into Aerospile
+The Aerospike Sparke connector provides functions to load data from Aerospike into a DataFrame and save a DataFrames into Aerospile
 
 ### Loading data
 
 ```scala
-		thingsDF = sqlContext.read.
-						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", "127.0.0.1").
-						option("aerospike.port", "3000").
-						option("aerospike.namespace", "test").
-						option("aerospike.set", "rdd-test").
-						load 
+	thingsDF = sqlContext.read.
+		format("com.aerospike.spark.sql").
+		option("aerospike.seedhost", "127.0.0.1").
+		option("aerospike.port", "3000").
+		option("aerospike.namespace", "test").
+		option("aerospike.set", "rdd-test").
+		load 
 ```
+
 You can see that the read function is configured by a number of options, these are:
 - `format("com.aerospike.spark.sql")` specifies the function library to load the DataFrame.
 - `option("aerospike.seedhost", "127.0.0.1")` specifies a seed host in the Aerospike cluster.
 - `option("aerospike.port", "3000")` specifies the port to be used
 - `option("aerospike.namespace", "test")` specifies the Namespace name to be used e.g. "test"
 - `option("aerospike.set", "rdd-test")` specifies the Set to be used e.g. "rdd-test"
- 
+Spark SQL can be used to efficently filter (where lastName = 'Smith') Bin values represented as columns. The filter is passed down to the Aerospike cluster and filtering is done in the server. Here is an example using filtering:
+```scala
+	thingsDF = sqlContext.read.
+		format("com.aerospike.spark.sql").
+		option("aerospike.seedhost", "127.0.0.1").
+		option("aerospike.port", "3000").
+		option("aerospike.namespace", namespace).
+		option("aerospike.set", "rdd-test").
+		load 
+	thingsDF.registerTempTable("things")
+	val filteredThings = sqlContext.sql("select * from things where one = 55")
+
+```
+
 ### Saving data
 A DataFrame can be saved in Aerospike by specifying a column in the DataFrame as the Primary Key or the Digest.
 #### Saving by Digest
+In this example, the value of the digest is specified by the "__digest" column in the DataFrame.
+```scala
+	thingsDF = sqlContext.read.
+		format("com.aerospike.spark.sql").
+		option("aerospike.seedhost", "127.0.0.1").
+		option("aerospike.port", "3000").
+		option("aerospike.namespace", namespace).
+		option("aerospike.set", "rdd-test").
+		load 
+		
+    thingsDF.write.
+        mode(SaveMode.Overwrite).
+        format("com.aerospike.spark.sql").
+        option("aerospike.seedhost", "127.0.0.1").
+		option("aerospike.port", "3000").
+		option("aerospike.namespace", namespace).
+		option("aerospike.set", "rdd-test").
+		option("aerospike.updateByDigest", "__digest").
+        save()                
 
+```
 #### Saving by Key
 In this example, the value of the primary key is specifioed by the "key" column in the DataFrame.
 ```scala
@@ -87,8 +121,6 @@ In this example, the value of the primary key is specifioed by the "key" column 
           )
           
       val inputRDD = sc.parallelize(rows)
-      
-      assert(sc != null)
       
       val newDF = sqlContext.createDataFrame(inputRDD, schema)
   
