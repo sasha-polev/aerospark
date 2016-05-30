@@ -62,13 +62,6 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
     
   }
   
-//  it should "create Spark contexts" in {
-//    conf = new SparkConf().setMaster("local[*]").setAppName("Aerospike Relation Tests")
-//    sc = new SparkContext(conf)
-//    sqlContext = new SQLContext(sc)
-//
-//  }
-  
   it should "create an AerospikeRelation" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
@@ -172,12 +165,8 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
           
       val inputRDD = sc.parallelize(rows)
       
-      assert(sc != null)
-      
       val newDF = sqlContext.createDataFrame(inputRDD, schema)
   
-      //println(newDF.show())
- 
       newDF.write.
         mode(SaveMode.Ignore).
         format("com.aerospike.spark.sql").
