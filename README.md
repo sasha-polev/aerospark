@@ -74,7 +74,7 @@ Spark SQL can be used to efficently filter (where lastName = 'Smith') Bin values
 
 ```
 
-Additional meta-data columns are automatically included when reading from Aerospike, the devault names are:
+Additional meta-data columns are automatically included when reading from Aerospike, the default names are:
 - `__key` the values of the primary key if it is stored in Aerospike
 - `__digest` the digest as Array[byte]
 - `__generation` the gereration value of the record read
