@@ -40,3 +40,23 @@ sbt 'set test in assembly := {}' clean assembly
 
 On conclustion of the build, the uber JAR `some jar name` will be located in the subdirectory `some place`.
 ## Loading and Saving DataFrames 
+The Aerospike Sparke connector provides functiosn to load data from Aerospike into a DataFrame and save a DataFrames into Aerospile
+
+## Loading data
+
+```scala
+		thingsDF = sqlContext.read.
+						format("com.aerospike.spark.sql").
+						option("aerospike.seedhost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", "test").
+						option("aerospike.set", "rdd-test").
+						load 
+```
+You can see that the read function is configured by a number of options, these are:
+- `format("com.aerospike.spark.sql")` specifies the function library to load the DataFrame.
+- `option("aerospike.seedhost", "127.0.0.1")` specifies a seed host in the Aerospike cluster.
+- `option("aerospike.port", "3000")` specifies the port to be used
+- `option("aerospike.namespace", "test")` specifies the Namespace name to be used e.g. "test"
+- `option("aerospike.set", "rdd-test")` specifies the Set to be used e.g. "rdd-test"
+ 
