@@ -69,7 +69,9 @@ class AerospikeRelationTest extends FlatSpec {
 
   it should "select the data using scan" in {
 		val result = thingsDF.take(50)
-		result.foreach(println(_))
+		result.foreach { row => 
+		    assert(row.getAs[String]("two").startsWith("two:"))
+      }
   }
   
   it should " select the data using filter on 'one'" in {
