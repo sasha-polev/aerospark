@@ -10,6 +10,8 @@ scalaVersion := "2.10.6"
 
 javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 
+parallelExecution in test := false
+
 libraryDependencies ++= Seq("org.apache.spark" %% "spark-core" % "1.6.1",
 	"org.apache.spark" %% "spark-sql" % "1.6.1",
 	"com.aerospike" % "aerospike-helper-java" % "1.0.5",

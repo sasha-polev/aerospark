@@ -16,9 +16,10 @@ import com.aerospike.client.Value
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.StringType
+import org.scalatest.BeforeAndAfter
 
 
-class AerospikeRelationTest extends FlatSpec {
+class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   var client: AerospikeClient = _
   var conf: SparkConf = _
   var sc:SparkContext = _
@@ -28,6 +29,21 @@ class AerospikeRelationTest extends FlatSpec {
   val TEST_COUNT = 100
   
   val namespace = "test"
+  
+  before {
+    conf = new SparkConf().setMaster("local[*]")
+        .setAppName("Aerospike Relation Tests")
+        .set("spark.driver.allowMultipleContexts", "true")
+    sc = new SparkContext(conf)
+    sqlContext = new SQLContext(sc)
+
+  }
+
+  after {
+    if (sc != null) {
+      sc.stop()
+    }
+  }
 
   behavior of "Aerospike Relation"
 
@@ -46,12 +62,12 @@ class AerospikeRelationTest extends FlatSpec {
     
   }
   
-  it should "create Spark contexts" in {
-    conf = new SparkConf().setMaster("local[*]").setAppName("Aerospike Relation Tests")
-    sc = new SparkContext(conf)
-    sqlContext = new SQLContext(sc)
-
-  }
+//  it should "create Spark contexts" in {
+//    conf = new SparkConf().setMaster("local[*]").setAppName("Aerospike Relation Tests")
+//    sc = new SparkContext(conf)
+//    sqlContext = new SQLContext(sc)
+//
+//  }
   
   it should "create an AerospikeRelation" in {
 		thingsDF = sqlContext.read.
@@ -61,13 +77,7 @@ class AerospikeRelationTest extends FlatSpec {
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", "rdd-test").
 						load 
-  }
-  
-  it should "print the schema" in {
-		thingsDF.printSchema()
-  }
-
-  it should "select the data using scan" in {
+	  thingsDF.printSchema()
 		val result = thingsDF.take(50)
 		result.foreach { row => 
 		    assert(row.getAs[String]("two").startsWith("two:"))
@@ -75,6 +85,13 @@ class AerospikeRelationTest extends FlatSpec {
   }
   
   it should " select the data using filter on 'one'" in {
+		thingsDF = sqlContext.read.
+						format("com.aerospike.spark.sql").
+						option("aerospike.seedhost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", namespace).
+						option("aerospike.set", "rdd-test").
+						load 
 		thingsDF.registerTempTable("things")
 		val filteredThings = sqlContext.sql("select * from things where one = 55")
 		val thing = filteredThings.first()
@@ -83,7 +100,14 @@ class AerospikeRelationTest extends FlatSpec {
   }
 
   it should "save with Overwrite (RecordExistsAction.REPLACE)" in {
-      thingsDF.write.
+		thingsDF = sqlContext.read.
+						format("com.aerospike.spark.sql").
+						option("aerospike.seedhost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", namespace).
+						option("aerospike.set", "rdd-test").
+						load 
+    thingsDF.write.
         mode(SaveMode.Overwrite).
         format("com.aerospike.spark.sql").
         option("aerospike.seedhost", "127.0.0.1").
@@ -95,7 +119,14 @@ class AerospikeRelationTest extends FlatSpec {
   }
 
   it should "save with Ignore (RecordExistsAction.CREATE_ONL)" in {
-      thingsDF.write.
+		thingsDF = sqlContext.read.
+						format("com.aerospike.spark.sql").
+						option("aerospike.seedhost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", namespace).
+						option("aerospike.set", "rdd-test").
+						load 
+    thingsDF.write.
         mode(SaveMode.Ignore).
         format("com.aerospike.spark.sql").
         option("aerospike.seedhost", "127.0.0.1").
@@ -118,7 +149,7 @@ class AerospikeRelationTest extends FlatSpec {
     
   }
   
-    it should "create new data from DataFrame (RecordExistsAction.CREATE_ONL)" in {
+  it should "create new data from DataFrame (RecordExistsAction.CREATE_ONL)" in {
       
       val setName = "new-rdd-data"
       
