@@ -33,14 +33,14 @@ After cloning the repository, build the uber jar using:
 ```bash
 $ sbt assembly
 ```
-Note that during the build, a number of unit tests are run, these tests will assume an Aerospike cluster is running at "127.0.0.1" on port 3000. If you want to ignote the unit tests, use:
+Note that during the build, a number of unit tests are run, these tests will assume an Aerospike cluster is running at "127.0.0.1" on port 3000. If you want to ignore the unit tests, use:
 ```bash
-sbt 'set test in assembly := {}' clean assembly
+$ sbt 'set test in assembly := {}' clean assembly
 ```
 
 On conclustion of the build, the uber JAR `some jar name` will be located in the subdirectory `some place`.
 ## Loading and Saving DataFrames 
-The Aerospike Sparke connector provides functions to load data from Aerospike into a DataFrame and save a DataFrames into Aerospile
+The Aerospike Sparke connector provides functions to load data from Aerospike into a DataFrame and save a DataFrames into Aerospike
 
 ### Loading data
 
