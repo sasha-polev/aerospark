@@ -45,7 +45,7 @@ The Aerospike Sparke connector provides functions to load data from Aerospike in
 ### Loading data
 
 ```scala
-	thingsDF = sqlContext.read.
+	val thingsDF = sqlContext.read.
 		format("com.aerospike.spark.sql").
 		option("aerospike.seedhost", "127.0.0.1").
 		option("aerospike.port", "3000").
@@ -62,7 +62,7 @@ You can see that the read function is configured by a number of options, these a
 - `option("aerospike.set", "rdd-test")` specifies the Set to be used e.g. "rdd-test"
 Spark SQL can be used to efficently filter (where lastName = 'Smith') Bin values represented as columns. The filter is passed down to the Aerospike cluster and filtering is done in the server. Here is an example using filtering:
 ```scala
-	thingsDF = sqlContext.read.
+	val thingsDF = sqlContext.read.
 		format("com.aerospike.spark.sql").
 		option("aerospike.seedhost", "127.0.0.1").
 		option("aerospike.port", "3000").
@@ -79,7 +79,7 @@ A DataFrame can be saved in Aerospike by specifying a column in the DataFrame as
 #### Saving by Digest
 In this example, the value of the digest is specified by the "__digest" column in the DataFrame.
 ```scala
-	thingsDF = sqlContext.read.
+	val thingsDF = sqlContext.read.
 		format("com.aerospike.spark.sql").
 		option("aerospike.seedhost", "127.0.0.1").
 		option("aerospike.port", "3000").
