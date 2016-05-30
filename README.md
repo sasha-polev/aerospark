@@ -81,7 +81,7 @@ Additional meta-data columns are automatically included when reading from Aerosp
 - `__expitation` the expiration epoch
 - `__ttl` the time to live value calcualed from the expiration - now
  
-These meta-data column name defaults can be be changed by using additionals options during read or write, for example:
+These meta-data column name defaults can be be changed by using additional options during read or write, for example:
 ```scala
 	val thingsDF = sqlContext.read.
 		format("com.aerospike.spark.sql").
