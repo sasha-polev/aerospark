@@ -118,7 +118,7 @@ In this example, the value of the digest is specified by the "__digest" column i
 
 ```
 #### Saving by Key
-In this example, the value of the primary key is specifioed by the "key" column in the DataFrame.
+In this example, the value of the primary key is specified by the "key" column in the DataFrame.
 ```scala
       val setName = "new-rdd-data"
       
