@@ -12,8 +12,8 @@ javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 
 parallelExecution in test := false
 
-libraryDependencies ++= Seq("org.apache.spark" %% "spark-core" % "1.6.1",
-	"org.apache.spark" %% "spark-sql" % "1.6.1",
+libraryDependencies ++= Seq("org.apache.spark" %% "spark-core" % "1.6.1" % "provided",
+	"org.apache.spark" %% "spark-sql" % "1.6.1" % "provided",
 	"com.aerospike" % "aerospike-helper-java" % "1.0.5",
 	"org.scalatest" %% "scalatest" % "2.2.1" % "test")
 
@@ -24,6 +24,8 @@ assemblyMergeStrategy in assembly := {
       MergeStrategy.concat
     case PathList(ps @ _*) if Assembly.isReadme(ps.last) || Assembly.isLicenseFile(ps.last) =>
       MergeStrategy.rename
+   case PathList("META-INF", "maven","com.aerospike","aerospike-client", "pom.properties") =>
+      MergeStrategy.discard
     case PathList("META-INF", xs @ _*) =>
       (xs map {_.toLowerCase}) match {
         case ("manifest.mf" :: Nil) | ("index.list" :: Nil) | ("dependencies" :: Nil) =>

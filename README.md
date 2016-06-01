@@ -12,7 +12,7 @@ The source code for this solution is available on GitHub at [https://github.com/
 
 This Library requires Java JDK 7+ Scala 2.10, SBT 0.13, Maven and the `aerospike-helper-java` 
 
-Before you build the Aerospike spark connector you need to build the `aerospike-helper-java.jar` and install it in your local maven repository. The `aerospike-helper-java.jar` is used by the connector to perform efficent, multi-filter queries on Aerospike.
+Before you build the Aerospike spark connector you need to build the `aerospike-helper-java` JAR and install it in your local maven repository. The `aerospike-helper-java` JAR is used by the connector to perform efficent, multi-filter queries on Aerospike.
 
 Clone the [Aerospike Helper](https://github.com/aerospike/aerospike-helper) repository using this command:
 ```bash
@@ -22,7 +22,7 @@ Navigate to the subdirectory `java` and run the following command to build and i
 ```bash
 $ mvn clean install -DskipTests
 ```
-When maven is complete the `aerospike-helper-java.jar` will be installed in your local maven repository
+When maven is complete the `aerospike-helper-java` JAR will be installed in your local maven repository
 
 To build the Spark connector:
 Clone the [Aerospike Spark](https://github.com/citrusleaf/aerospark/.git) repository using this command:
@@ -38,9 +38,10 @@ Note that during the build, a number of unit tests are run, these tests will ass
 $ sbt 'set test in assembly := {}' clean assembly
 ```
 
-On conclustion of the build, the uber JAR **some jar name** will be located in the subdirectory **some place**.
+On conclusion of the build, the uber JAR `aerospike-spark-assembly-<version>.jar` will be located in the subdirectory `target/scala-2.10`.
+
 ## Loading and Saving DataFrames 
-The Aerospike Sparke connector provides functions to load data from Aerospike into a DataFrame and save a DataFrame into Aerospike
+The Aerospike Spark connector provides functions to load data from Aerospike into a DataFrame and save a DataFrame into Aerospike
 
 ### Loading data
 
@@ -170,3 +171,13 @@ In this example, the value of the primary key is specified by the "key" column i
          client.delete(null, key)
       }
 ```
+### Schema
+Aerospike is Schema-less and Spark DataFrames use a Schema. To facilitate the need for schema, the Aerospike spark connector samples 100 records, via a scan, and reads the Bin names and infers the Bin type.
+
+The number of records scanned can be changed by using the option:
+
+```scala
+	option("aerospike.schema.scan", 20)
+```
+
+
