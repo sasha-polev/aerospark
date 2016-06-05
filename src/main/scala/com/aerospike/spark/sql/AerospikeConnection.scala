@@ -4,7 +4,11 @@ import com.aerospike.helper.query._
 import com.aerospike.client.AerospikeClient
 
 /**
- * Cache AerospikeClient instances
+ * This class caches the AerospikeClient. The key used to retrive the client is based on the
+ * seen host supplied and the port.
+ * 
+ * The purpose of this class is to eliminate excessive client creation with
+ * the goal of having 1 client per executor.
  */
 object AerospikeConnection {
   val clientCache = new scala.collection.mutable.HashMap[String, AerospikeClient]()

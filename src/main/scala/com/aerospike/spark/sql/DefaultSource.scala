@@ -23,7 +23,9 @@ import com.aerospike.client.ResultCode
 import com.aerospike.client.policy.GenerationPolicy
 
 
-
+/**
+ * This class provides implementations to the Spark load and save functions
+ */
 class DefaultSource extends RelationProvider with Serializable
 with Logging
 with CreatableRelationProvider{

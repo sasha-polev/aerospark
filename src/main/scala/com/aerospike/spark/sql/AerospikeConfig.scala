@@ -3,7 +3,10 @@ package com.aerospike.spark.sql
 import scala.collection.immutable.Map
 import com.aerospike.client.policy.CommitLevel
 import com.aerospike.client.policy.GenerationPolicy
-
+/**
+ * this class is a container for the properties used during the
+ * the read and save functions 
+ */
 class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 
   

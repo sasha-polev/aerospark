@@ -18,7 +18,10 @@ import com.aerospike.client.Bin
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
-
+/**
+ * This object provides utility methods to convert between
+ * the Aerospike and park SQL types
+ */
 object TypeConverter{
   
   def binNamesOnly(fieldNames:Array[String], metaFields:Set[String]):Array[String] = {
@@ -91,12 +94,4 @@ object TypeConverter{
 			field
 	}
 	
-	
-
 }
-
-
-			/*
-       ArrayType -> scala.collection.Seq (use getList for java.util.List)
-       MapType -> scala.collection.Map (use getJavaMap for java.util.Map)
-			 */

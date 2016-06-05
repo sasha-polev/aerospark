@@ -92,6 +92,23 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
 		assert(one == 55)
   }
 
+    it should " select the data using range filter where 'one' the value is between 55 and 65" in {
+		thingsDF = sqlContext.read.
+						format("com.aerospike.spark.sql").
+						option("aerospike.seedhost", "127.0.0.1").
+						option("aerospike.port", "3000").
+						option("aerospike.namespace", namespace).
+						option("aerospike.set", "rdd-test").
+						load 
+		thingsDF.registerTempTable("things")
+		val filteredThings = sqlContext.sql("select * from things where one between 55 and 65")
+		val thing = filteredThings.first()
+		val one = thing.getAs[Long]("one")
+		assert(one >= 55)
+		assert(one <= 65)
+  }
+
+  
   it should "save with Overwrite (RecordExistsAction.REPLACE)" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").

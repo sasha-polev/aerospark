@@ -30,7 +30,10 @@ import scala.collection.mutable.ListBuffer
 import org.apache.spark.sql.types.IntegerType
 import scala.collection.immutable.ListMap
 
-
+/**
+ * This class infers the schema used by the DataFrame
+ * and creates an instance of @see com.aerospike.spark.sql.KeyRecordRDD
+ */
 class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
   (@transient val sqlContext: SQLContext) 
     extends BaseRelation
