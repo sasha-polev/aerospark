@@ -8,3 +8,4 @@ target/
 bin
 .cache-tests
 .cache-main
+metastore_db

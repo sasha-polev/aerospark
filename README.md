@@ -40,10 +40,68 @@ $ sbt 'set test in assembly := {}' clean assembly
 
 On conclusion of the build, the uber JAR `aerospike-spark-assembly-<version>.jar` will be located in the subdirectory `target/scala-2.10`.
 
-## Loading and Saving DataFrames 
+## Usage
+The assembled JAR can be used in any Spark application providing it's on the class path.
+### spark shell
+To use connector with the spark-shell, use the `--jars` command line option and include the path to the assembled JAR.
+Example:
+```bash
+$ spark-shell --master local[*] --jars target/scala-2.10/aerospike-spark-assembly-1.1.0.jar
+```
+Import the `com.aerospike.spark.sql._` package
+```scala
+scala> import com.aerospike.spark.sql._
+import com.aerospike.spark.sql._
+```
+and any Aerospike packages and classes. For example:
+```scala
+scala> import com.aerospike.client.AerospikeClient
+import com.aerospike.client.AerospikeClient
+
+scala> import com.aerospike.client.Bin
+import com.aerospike.client.Bin
+
+scala> import com.aerospike.client.Key
+import com.aerospike.client.Key
+
+scala> import com.aerospike.client.Value
+import com.aerospike.client.Value
+
+```
+Load some data into Aerospike with:
+```scala
+    val TEST_COUNT = 100
+    val namespace = "test"
+    var client = AerospikeConnection.getClient("localhost", 3000)
+    Value.UseDoubleType = true
+    for (i <- 1 to TEST_COUNT) {
+      val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
+      client.put(null, key,
+         new Bin("one", i),
+         new Bin("two", "two:"+i),
+         new Bin("three", i.toDouble)
+      )
+    }
+
+```
+Try a test with the loaded data:
+```scala
+	val thingsDF = sqlContext.read.
+			format("com.aerospike.spark.sql").
+			option("aerospike.seedhost", "127.0.0.1").
+			option("aerospike.port", "3000").
+			option("aerospike.namespace", namespace).
+			option("aerospike.set", "rdd-test").
+			load 
+	thingsDF.registerTempTable("things")
+	val filteredThings = sqlContext.sql("select * from things where one = 55")
+	val thing = filteredThings.first()
+```
+
+### Loading and Saving DataFrames 
 The Aerospike Spark connector provides functions to load data from Aerospike into a DataFrame and save a DataFrame into Aerospike
 
-### Loading data
+#### Loading data
 
 ```scala
 	val thingsDF = sqlContext.read.
@@ -94,9 +152,9 @@ These meta-data column name defaults can be be changed by using additional optio
 		load 
 ```
 
-### Saving data
+#### Saving data
 A DataFrame can be saved in Aerospike by specifying a column in the DataFrame as the Primary Key or the Digest.
-#### Saving by Digest
+##### Saving by Digest
 In this example, the value of the digest is specified by the "__digest" column in the DataFrame.
 ```scala
 	val thingsDF = sqlContext.read.
@@ -118,7 +176,7 @@ In this example, the value of the digest is specified by the "__digest" column i
         save()                
 
 ```
-#### Saving by Key
+##### Saving by Key
 In this example, the value of the primary key is specified by the "key" column in the DataFrame.
 ```scala
       val setName = "new-rdd-data"
@@ -179,5 +237,5 @@ The number of records scanned can be changed by using the option:
 ```scala
 	option("aerospike.schema.scan", 20)
 ```
-
+Note: the schema is derived each time `load` is called. If you call `load` before the Aerospike namespace/set has any data, only the meta-data columns will be available.
 
