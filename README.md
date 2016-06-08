@@ -40,10 +40,18 @@ $ sbt 'set test in assembly := {}' clean assembly
 
 On conclusion of the build, the uber JAR `aerospike-spark-assembly-<version>.jar` will be located in the subdirectory `target/scala-2.10`.
 
-## Loading and Saving DataFrames 
+## Usage
+The assembled JAR can be used in any Spark application providing it's on the class path.
+### spark shell
+To use connector with the spark-shell, use the `--jars` command line option and include the path to the assembled JAR.
+Example:
+```bash
+	spark-shell --master local[*] --jars target/scala-2.10/aerospike-spark-assembly-1.1.0.jar
+```
+### Loading and Saving DataFrames 
 The Aerospike Spark connector provides functions to load data from Aerospike into a DataFrame and save a DataFrame into Aerospike
 
-### Loading data
+#### Loading data
 
 ```scala
 	val thingsDF = sqlContext.read.
@@ -94,9 +102,9 @@ These meta-data column name defaults can be be changed by using additional optio
 		load 
 ```
 
-### Saving data
+#### Saving data
 A DataFrame can be saved in Aerospike by specifying a column in the DataFrame as the Primary Key or the Digest.
-#### Saving by Digest
+##### Saving by Digest
 In this example, the value of the digest is specified by the "__digest" column in the DataFrame.
 ```scala
 	val thingsDF = sqlContext.read.
@@ -118,7 +126,7 @@ In this example, the value of the digest is specified by the "__digest" column i
         save()                
 
 ```
-#### Saving by Key
+##### Saving by Key
 In this example, the value of the primary key is specified by the "key" column in the DataFrame.
 ```scala
       val setName = "new-rdd-data"
