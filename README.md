@@ -8,7 +8,7 @@ Aerospike Spark Connector includes:
 
 ## How to build
 
-The source code for this solution is available on GitHub at [https://github.com/citrusleaf/aerospark](https://github.com/citrusleaf/aerospark). SBT is the build tool and it will create a Uber (fat) jar as the final output of the build process. The jar will contain all the class files and dependencies.
+The source code for this solution is available on GitHub at [https://github.com/aerospike/aerospark](https://github.com/citrusleaf/aerospark). SBT is the build tool and it will create a Uber (fat) jar as the final output of the build process. The jar will contain all the class files and dependencies.
 
 This Library requires Java JDK 7+ Scala 2.10, SBT 0.13, Maven and the `aerospike-helper-java` 
 
