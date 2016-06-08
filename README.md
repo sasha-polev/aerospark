@@ -179,6 +179,16 @@ In this example, the value of the digest is specified by the "__digest" column i
 ##### Saving by Key
 In this example, the value of the primary key is specified by the "key" column in the DataFrame.
 ```scala
+      import org.apache.spark.sql.types.StructType
+      import org.apache.spark.sql.types.StructField
+      import org.apache.spark.sql.types.LongType
+      import org.apache.spark.sql.types.StringType
+      import org.apache.spark.sql.DataFrame
+      import org.apache.spark.sql.Row
+      import org.apache.spark.sql.SaveMode
+
+
+      val namespace = "test"
       val setName = "new-rdd-data"
       
       val schema = new StructType(Array(
@@ -211,23 +221,6 @@ In this example, the value of the primary key is specified by the "key" column i
 						option("aerospike.set", setName).
 						option("aerospike.updateByKey", "key").
         save()       
-      
-      var key = new Key(namespace, setName, "Fraser_Malcolm")
-      var record = client.get(null, key)
-      assert(record.getString("last") == "Fraser")
-      
-      key = new Key(namespace, setName, "Hawke_Bob")
-      record = client.get(null, key)
-      assert(record.getString("first") == "Bob")
-
-      key = new Key(namespace, setName, "Gillard_Julia")
-      record = client.get(null, key)
-      assert(record.getLong("when") == 2010)
-
-      rows.foreach { row => 
-         val key = new Key(namespace, setName, row.getString(0))
-         client.delete(null, key)
-      }
 ```
 ### Schema
 Aerospike is Schema-less and Spark DataFrames use a Schema. To facilitate the need for schema, the Aerospike spark connector samples 100 records, via a scan, and reads the Bin names and infers the Bin type.
