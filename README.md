@@ -179,6 +179,11 @@ In this example, the value of the digest is specified by the "__digest" column i
 ##### Saving by Key
 In this example, the value of the primary key is specified by the "key" column in the DataFrame.
 ```scala
+      import org.apache.spark.sql.types.StructType
+      import org.apache.spark.sql.types.StructField
+      import org.apache.spark.sql.types.LongType
+      import org.apache.spark.sql.types.StringType
+
       val namespace = "test"
       val setName = "new-rdd-data"
       
