@@ -183,6 +183,9 @@ In this example, the value of the primary key is specified by the "key" column i
       import org.apache.spark.sql.types.StructField
       import org.apache.spark.sql.types.LongType
       import org.apache.spark.sql.types.StringType
+      import org.apache.spark.sql.DataFrame
+      import org.apache.spark.sql.Row
+
 
       val namespace = "test"
       val setName = "new-rdd-data"
