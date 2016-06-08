@@ -46,8 +46,58 @@ The assembled JAR can be used in any Spark application providing it's on the cla
 To use connector with the spark-shell, use the `--jars` command line option and include the path to the assembled JAR.
 Example:
 ```bash
-	spark-shell --master local[*] --jars target/scala-2.10/aerospike-spark-assembly-1.1.0.jar
+$ spark-shell --master local[*] --jars target/scala-2.10/aerospike-spark-assembly-1.1.0.jar
 ```
+Import the `com.aerospike.spark.sql._` package
+```scala
+scala> import com.aerospike.spark.sql._
+import com.aerospike.spark.sql._
+```
+and any Aerospike packages and classes. For example:
+```scala
+scala> import com.aerospike.client.AerospikeClient
+import com.aerospike.client.AerospikeClient
+
+scala> import com.aerospike.client.Bin
+import com.aerospike.client.Bin
+
+scala> import com.aerospike.client.Key
+import com.aerospike.client.Key
+
+scala> import com.aerospike.client.Value
+import com.aerospike.client.Value
+
+```
+Load some data into Aerospike with:
+```scala
+    val TEST_COUNT = 100
+    val namespace = "test"
+    var client = AerospikeConnection.getClient("localhost", 3000)
+    Value.UseDoubleType = true
+    for (i <- 1 to TEST_COUNT) {
+      val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
+      client.put(null, key,
+         new Bin("one", i),
+         new Bin("two", "two:"+i),
+         new Bin("three", i.toDouble)
+      )
+    }
+
+```
+Try a test with the loaded data:
+```scala
+	val thingsDF = sqlContext.read.
+			format("com.aerospike.spark.sql").
+			option("aerospike.seedhost", "127.0.0.1").
+			option("aerospike.port", "3000").
+			option("aerospike.namespace", namespace).
+			option("aerospike.set", "rdd-test").
+			load 
+	thingsDF.registerTempTable("things")
+	val filteredThings = sqlContext.sql("select * from things where one = 55")
+	val thing = filteredThings.first()
+```
+
 ### Loading and Saving DataFrames 
 The Aerospike Spark connector provides functions to load data from Aerospike into a DataFrame and save a DataFrame into Aerospike
 
@@ -187,5 +237,5 @@ The number of records scanned can be changed by using the option:
 ```scala
 	option("aerospike.schema.scan", 20)
 ```
-
+Note: the schema is derived each time `load` is called. If you call `load` before the Aerospike namespace/set has any data, only the meta-data columns will be available.
 
