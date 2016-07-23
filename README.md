@@ -1,11 +1,9 @@
 Aerospike Spark Connector
 ===============
 
-NOTE: this is an experimental version for Spark 1.3.0 and Aerospike 3.1.0 API
---------------------------------------------------------------------------------------------------
+NOTE: There is a newer version of this connector (although not functionally identical) at [https://github.com/aerospike/aerospark](https://github.com/aerospike/aerospark).
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-For version that requires Spark 1.2.0 please use [Spark-1.2.0](https://github.com/sasha-polev/aerospark/tree/Spark-1.2.0) tag
---------------------------------------------------------------------------------------------------
 
 Spark glue to efficiently read data from Aerospike
 
