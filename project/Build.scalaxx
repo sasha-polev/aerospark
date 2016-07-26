@@ -1,0 +1,8 @@
+import sbt._
+
+object SparkBuild extends Build {
+
+  lazy val root = Project("root", file(".")) dependsOn(aerospikeHelperProject)
+  lazy val aerospikeHelperProject = RootProject(uri("git://github.com/helipilot50/aerospike-helper.git"))
+
+}
