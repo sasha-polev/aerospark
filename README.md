@@ -222,6 +222,13 @@ In this example, the value of the primary key is specified by the "key" column i
 						option("aerospike.updateByKey", "key").
         save()       
 ```
+##### Using TTL while saving 
+Time to live (TTL) can be set individually on each record. The TTL should be stored in a column in the DataSet before it is saved. 
+
+To enable updates to TTL, and additional option is specified:
+```scala
+	option("aerospike.ttlColumn", "expiry")
+```
 ### Schema
 Aerospike is Schema-less and Spark DataFrames use a Schema. To facilitate the need for schema, the Aerospike spark connector samples 100 records, via a scan, and reads the Bin names and infers the Bin type.
 

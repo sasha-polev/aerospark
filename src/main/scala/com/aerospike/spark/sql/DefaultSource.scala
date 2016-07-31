@@ -127,33 +127,43 @@ with CreatableRelationProvider{
 			    policy.generation = row(schema.fieldIndex(config.generationColumn)).asInstanceOf[java.lang.Integer].intValue
 			  }
 			  
+			  if (schema.fieldNames.contains(config.ttlColumn)){
+			    var  expIndex = schema.fieldIndex(config.ttlColumn)
+			    policy.expiration = row(expIndex).asInstanceOf[java.lang.Integer].intValue
+			  }
 			  client.put(policy, key, bins.toArray:_*)
 				
 			  counter += 1;  
 			} catch {
         case ex: AerospikeException => {
+        		val message = ex.getMessage
             mode match {
         			case SaveMode.ErrorIfExists => {
         			  if (ex.getResultCode == ResultCode.KEY_EXISTS_ERROR){
-        			    val message = ex.getMessage
         			    logDebug(s"Key:$key Error:$message")
         			    throw ex
+        			  } else {
+        			    logError(s"Key:$key Error:$message")
         			  }
         			}
         			case SaveMode.Ignore => {
         			  if (ex.getResultCode == ResultCode.KEY_EXISTS_ERROR){
-        			    val message = ex.getMessage
         			    logDebug(s"Ignoring existing Key:$key")
-        			    
+        			  } else {
+        			    logError(s"Key:$key Error:$message")
         			  }
         			}
-        			//case SaveMode.Overwrite => { }
+        			case SaveMode.Overwrite => {
+        			  logError(s"Key:$key Error:$message")
+        			}
         			case SaveMode.Append => {
         			  if (ex.getResultCode == ResultCode.KEY_NOT_FOUND_ERROR){
-        			    val message = ex.getMessage
         			    logDebug(s"Ignoring missing Key:$key")
+        			  } else {
+        			    logError(s"Key:$key Error:$message")
         			  }
         			}
+        			
         		}   
         }
       } 

@@ -16,7 +16,9 @@ import com.aerospike.client.Value
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.functions.lit
 import org.scalatest.BeforeAndAfter
+import org.apache.spark.sql.types.IntegerType
 
 
 class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
@@ -128,7 +130,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
         save()                
   }
 
-  it should "save with Ignore (RecordExistsAction.CREATE_ONL)" in {
+  it should "save with Ignore (RecordExistsAction.CREATE_ONLY)" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
 						option("aerospike.seedhost", "127.0.0.1").
@@ -159,7 +161,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
     
   }
   
-  it should "create new data from DataFrame (RecordExistsAction.CREATE_ONL)" in {
+  it should "write data from DataFrame with expiry" in {
       
       val setName = "new-rdd-data"
       
@@ -167,17 +169,18 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
           StructField("key",StringType,nullable = false),
           StructField("last",StringType,nullable = true),
           StructField("first",StringType,nullable = true),
-          StructField("when",LongType,nullable = true)
+          StructField("when",LongType,nullable = true),
+          StructField("ttl", IntegerType, nullable = true)
           )) 
       val rows = Seq(
-          Row("Fraser_Malcolm","Fraser", "Malcolm", 1975L),
-          Row("Hawke_Bob","Hawke", "Bob", 1983L),
-          Row("Keating_Paul","Keating", "Paul", 1991L), 
-          Row("Howard_John","Howard", "John", 1996L), 
-          Row("Rudd_Kevin","Rudd", "Kevin", 2007L), 
-          Row("Gillard_Julia","Gillard", "Julia", 2010L), 
-          Row("Abbott_Tony","Abbott", "Tony", 2013L), 
-          Row("Tunrbull_Malcom","Tunrbull", "Malcom", 2015L)
+          Row("Fraser_Malcolm","Fraser", "Malcolm", 1975L, 60),
+          Row("Hawke_Bob","Hawke", "Bob", 1983L, 60),
+          Row("Keating_Paul","Keating", "Paul", 1991L, 60), 
+          Row("Howard_John","Howard", "John", 1996L, 60), 
+          Row("Rudd_Kevin","Rudd", "Kevin", 2007L, 60), 
+          Row("Gillard_Julia","Gillard", "Julia", 2010L, 60), 
+          Row("Abbott_Tony","Abbott", "Tony", 2013L, 60), 
+          Row("Tunrbull_Malcom","Tunrbull", "Malcom", 2015L, 60)
           )
           
       val inputRDD = sc.parallelize(rows)
@@ -192,6 +195,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", setName).
 						option("aerospike.updateByKey", "key").
+						option("aerospike.ttlColumn", "ttl").  // new time to live from column
         save()       
       
       var key = new Key(namespace, setName, "Fraser_Malcolm")
@@ -206,12 +210,11 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
       record = client.get(null, key)
       assert(record.getLong("when") == 2010)
 
-      rows.foreach { row => 
-         val key = new Key(namespace, setName, row.getString(0))
-         client.delete(null, key)
-      }
+//      rows.foreach { row => 
+//         val key = new Key(namespace, setName, row.getString(0))
+//         client.delete(null, key)
+//      }
     }
-
 
 }
 

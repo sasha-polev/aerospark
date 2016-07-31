@@ -18,6 +18,8 @@ import com.aerospike.client.Bin
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.types.DateType
+
 /**
  * This object provides utility methods to convert between
  * the Aerospike and park SQL types
@@ -54,14 +56,16 @@ object TypeConverter{
     
 		val value = row(schema.fieldIndex(field))
     val binValue = schema(field).dataType match {
-		  case _: LongType => value.asInstanceOf[java.lang.Long]
-		  case _: IntegerType => value.asInstanceOf[java.lang.Long]
-		  case _: ShortType => value.asInstanceOf[java.lang.Long]
-		  case _: DoubleType => value.asInstanceOf[java.lang.Double]
-		  case _: FloatType => value.asInstanceOf[java.lang.Double]
+		  case LongType => if (value == null) null else value.asInstanceOf[java.lang.Long]
+		  case IntegerType => if (value == null) null else new java.lang.Long(value.asInstanceOf[Int])
+		  case ShortType => if (value == null) null else value.asInstanceOf[java.lang.Long]
+		  case DoubleType => if (value == null) null else value.asInstanceOf[java.lang.Double]
+		  case FloatType => if (value == null) null else value.asInstanceOf[java.lang.Double]
+		  case DateType => if (value == null) null else value.asInstanceOf[java.sql.Date].getTime
 		  case _: ArrayType => value
 		  case _: MapType => value
-		  case _ => value.toString()
+		  case null => null
+		  case _ => if (value == null) null else value.toString()
 		}
     new Bin(field, binValue)
   }
@@ -76,7 +80,7 @@ object TypeConverter{
 					case _: java.lang.Long => StructField(binName, LongType, nullable = true)
 					case _: java.lang.Double => StructField(binName, DoubleType, nullable = true)
 					case _: java.lang.Float => StructField(binName, DoubleType, nullable = true)
-					case s:String => StructField(binName, StringType, nullable = true)
+					case s: String => StructField(binName, StringType, nullable = true)
 					case Map => {
 					  val aKey = valueToSchema((binName, binVal.asInstanceOf[Map[Object, Object]].keys.head))
 					  val aValue = valueToSchema((binName, binVal.asInstanceOf[Map[Object, Object]].values.head))
