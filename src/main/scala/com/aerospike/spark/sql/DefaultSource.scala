@@ -131,7 +131,8 @@ with CreatableRelationProvider{
 			    var  expIndex = schema.fieldIndex(config.ttlColumn)
 			    policy.expiration = row(expIndex).asInstanceOf[java.lang.Integer].intValue
 			  }
-			  client.put(policy, key, bins.toArray:_*)
+			  val binArray = bins.toArray
+			  client.put(policy, key, binArray:_*)
 				
 			  counter += 1;  
 			} catch {
@@ -139,31 +140,39 @@ with CreatableRelationProvider{
         		val message = ex.getMessage
             mode match {
         			case SaveMode.ErrorIfExists => {
-        			  if (ex.getResultCode == ResultCode.KEY_EXISTS_ERROR){
-        			    logDebug(s"Key:$key Error:$message")
-        			    throw ex
-        			  } else {
-        			    logError(s"Key:$key Error:$message")
-        			  }
-        			}
-        			case SaveMode.Ignore => {
-        			  if (ex.getResultCode == ResultCode.KEY_EXISTS_ERROR){
-        			    logDebug(s"Ignoring existing Key:$key")
-        			  } else {
-        			    logError(s"Key:$key Error:$message")
-        			  }
-        			}
-        			case SaveMode.Overwrite => {
-        			  logError(s"Key:$key Error:$message")
-        			}
-        			case SaveMode.Append => {
-        			  if (ex.getResultCode == ResultCode.KEY_NOT_FOUND_ERROR){
-        			    logDebug(s"Ignoring missing Key:$key")
-        			  } else {
-        			    logError(s"Key:$key Error:$message")
+        			  ex.getResultCode match {
+        			    case ResultCode.KEY_EXISTS_ERROR =>
+        			      logDebug(s"Key:$key Error:$message")
+        			      throw ex
+        			    case _ =>
+        			      logError(s"Key:$key Error:$message")
         			  }
         			}
         			
+        			case SaveMode.Ignore => {
+        			  ex.getResultCode match {
+        			    case ResultCode.KEY_EXISTS_ERROR =>
+        			      logDebug(s"Ignoring existing Key:$key")
+        			    case _ => 
+        			      logError(s"Key:$key Error:$message")
+        			      throw ex
+        			  }
+        			}
+        			
+        			case SaveMode.Overwrite => {
+        			  logError(s"Key:$key Error:$message")
+        			  //throw ex
+        			}
+        			
+        			case SaveMode.Append => {
+        			  ex.getResultCode match {
+        			    case ResultCode.KEY_NOT_FOUND_ERROR =>
+        			      logDebug(s"Ignoring missing Key:$key")
+        			    case _ =>
+        			      logError(s"Key:$key Error:$message")
+        			      throw ex
+        			  }
+        			}
         		}   
         }
       } 

@@ -19,6 +19,7 @@ import org.apache.spark.sql.SQLContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.types.DateType
+import org.apache.spark.sql.types.NullType
 
 /**
  * This object provides utility methods to convert between
@@ -62,12 +63,16 @@ object TypeConverter{
 		  case DoubleType => if (value == null) null else value.asInstanceOf[java.lang.Double]
 		  case FloatType => if (value == null) null else value.asInstanceOf[java.lang.Double]
 		  case DateType => if (value == null) null else value.asInstanceOf[java.sql.Date].getTime
+		  case NullType => null
 		  case _: ArrayType => value
 		  case _: MapType => value
 		  case null => null
 		  case _ => if (value == null) null else value.toString()
 		}
-    new Bin(field, binValue)
+		if (binValue == null)
+		  Bin.asNull(field)
+		else
+      new Bin(field, binValue)
   }
   
 	def valueToSchema(bin: (String, Object)): StructField = {
