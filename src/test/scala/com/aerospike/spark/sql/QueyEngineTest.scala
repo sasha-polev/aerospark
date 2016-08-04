@@ -66,6 +66,7 @@ class QueyEngineTest extends FlatSpec{
       val key = keyRecord.key
       val record = keyRecord.record
     }
+    it.close()
   }
   
     it should "clean up because it's mother doesn't work here" in {

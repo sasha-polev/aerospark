@@ -140,7 +140,7 @@ class KeyRecordRDD(
  * This class implement a Spark SQL row iterator.
  * It is used to iterate through the Record/Result set from the Aerospike query
  */
-class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType, metaFields: Set[String]) extends Iterator[org.apache.spark.sql.Row] {
+class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType, metaFields: Set[String]) extends Iterator[org.apache.spark.sql.Row] with Logging{
      
       def hasNext: Boolean = {
         kri.hasNext()
@@ -148,6 +148,9 @@ class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType, metaFiel
      
       def next: org.apache.spark.sql.Row = {
          val kr = kri.next()
+         // close if nothing left
+         //if (!kri.hasNext()) logInfo("*******nothing left")
+         //logInfo(s"Read: $kr")
          val expiration: Int = kr.record.expiration
          val generation: Int = kr.record.generation
          val ttl: Int = kr.record.getTimeToLive

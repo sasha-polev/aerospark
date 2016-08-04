@@ -70,22 +70,30 @@ class AerospikeConnectionTest extends FlatSpec {
      stmt.setSetName("rdd-test")
      val kri = qe.select(stmt)
      var count = 0
+     print("\t")
      while (kri.hasNext())
-       println(kri.next())
-       
+       //println(kri.next())
+       print(".")
+     qe.close()
     
   }
-  it should " do it a 2nd time" in {
-     var qe = AerospikeConnection.getQueryEngine(config)
+  it should " do it multiple time" in {
+    for( a <- 1 to 10){
+     
+     val qe = AerospikeConnection.getQueryEngine(config)
      
      var stmt = new Statement()
      stmt.setNamespace("test")
      stmt.setSetName("rdd-test")
      val kri = qe.select(stmt)
      var count = 0
+     print("\t")
      while (kri.hasNext())
-       println(kri.next())
-       
+       //println(kri.next())
+       print(".")
+      qe.close()
+    println(s"\tIteration: $a")
+    }
     
   }
 

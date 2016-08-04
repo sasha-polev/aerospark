@@ -36,6 +36,8 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   val TEST_COUNT = 100
   
   val namespace = "test"
+  val seedHost = "localhost"
+  val port = 3000
   
   before {
     conf = new SparkConf().setMaster("local[*]")
@@ -56,7 +58,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
 
   
   it should "create test data" in {
-    client = AerospikeConnection.getClient("localhost", 3000)
+    client = AerospikeConnection.getClient(seedHost, port)
     Value.UseDoubleType = true
     for (i <- 1 to TEST_COUNT) {
       val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
@@ -72,8 +74,8 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   it should "create an AerospikeRelation" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", "127.0.0.1").
-						option("aerospike.port", "3000").
+						option("aerospike.seedhost", seedHost).
+						option("aerospike.port", port.toString).
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", "rdd-test").
 						load 
@@ -87,8 +89,8 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   it should " select the data using filter on 'one'" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", "127.0.0.1").
-						option("aerospike.port", "3000").
+						option("aerospike.seedhost", seedHost).
+						option("aerospike.port", port.toString).
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", "rdd-test").
 						load 
@@ -102,8 +104,8 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
     it should " select the data using range filter where 'one' the value is between 55 and 65" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", "127.0.0.1").
-						option("aerospike.port", "3000").
+						option("aerospike.seedhost", seedHost).
+						option("aerospike.port", port.toString).
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", "rdd-test").
 						load 
@@ -119,16 +121,16 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   it should "save with Overwrite (RecordExistsAction.REPLACE)" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", "127.0.0.1").
-						option("aerospike.port", "3000").
+						option("aerospike.seedhost", seedHost).
+						option("aerospike.port", port.toString).
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", "rdd-test").
 						load 
     thingsDF.write.
         mode(SaveMode.Overwrite).
         format("com.aerospike.spark.sql").
-        option("aerospike.seedhost", "127.0.0.1").
-						option("aerospike.port", "3000").
+        option("aerospike.seedhost", seedHost).
+						option("aerospike.port", port.toString).
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", "rdd-test").
 						option("aerospike.updateByDigest", "__digest").
@@ -138,16 +140,16 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   it should "save with Ignore (RecordExistsAction.CREATE_ONLY)" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", "127.0.0.1").
-						option("aerospike.port", "3000").
+						option("aerospike.seedhost", seedHost).
+						option("aerospike.port", port.toString).
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", "rdd-test").
 						load 
     thingsDF.write.
         mode(SaveMode.Ignore).
         format("com.aerospike.spark.sql").
-        option("aerospike.seedhost", "127.0.0.1").
-						option("aerospike.port", "3000").
+        option("aerospike.seedhost", seedHost).
+						option("aerospike.port", port.toString).
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", "rdd-test").
 						option("aerospike.updateByDigest", "__digest").
@@ -195,8 +197,8 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
       newDF.write.
         mode(SaveMode.Ignore).
         format("com.aerospike.spark.sql").
-        option("aerospike.seedhost", "127.0.0.1").
-						option("aerospike.port", "3000").
+        option("aerospike.seedhost", seedHost).
+						option("aerospike.port", port.toString).
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", setName).
 						option("aerospike.updateByKey", "key").
@@ -218,61 +220,58 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   }
   
   it should "write and read alot of data" in {
-    	/*
-	 * Read flights data from CSV file
+   /*
+	 * Read flights data from CSV file an load them if they don't exist
 	 */
-	val rawFlightsRDD = sc.textFile("data/Flights 2016-01.csv")
-	/*
-	 * Parse each line into a Flight case class RDD
-	 */
-	val flightsRDD = rawFlightsRDD
-    	.filter(!_.contains("YEAR")) // Ignore headers
-    	.map(_.replace("\"", ""))
-    	.map(Flight.assign(_))
-    	.filter(_.DEP_TIME != null) // flights that never depart
-    	.filter(_.ARR_TIME != null) // flights that never arrive
-    	    
-	/*
-	 * make a DataFrame from the RDD 
-	 */
-	var flightsDF = sqlContext.createDataFrame(flightsRDD)
-
-	flightsDF.printSchema()
-	//flightsDF.show(50)
-	
-		/*
-		 * Save the DataFrame to Aerospike in
-		 * Namespace: test
-		 * Set: spark-key
-		 * key column: key
-		 * ttl column: expiry - expire in 300 seconds
-		 */
-
-	println("Save flights to Aerospike")
-	flightsDF.write.
-		mode(SaveMode.Overwrite).
-		format("com.aerospike.spark.sql").
-		option("aerospike.seedhost", "127.0.0.1").
-		option("aerospike.port", "3000").
-		option("aerospike.namespace", "test").
-		option("aerospike.set", "spark-test").
-		option("aerospike.updateByKey", "key").
-		option("aerospike.ttlColumn", "expiry").
-		save()                
-	
+  val checkKey: Key = new Key(namespace, "spark-test", Flight.formKey("2313", "AA", "655", "20151-1-10"))
+      
+  if (!client.exists(null, checkKey)) {
+    val rawFlightsRDD = sc.textFile("data/flightsaa.csv")
+    /*
+     * Parse each line into a Flight case class RDD
+     */
+    val flightsRDD = rawFlightsRDD
+      	.filter(!_.contains("YEAR")) // Ignore headers
+      	.map(_.replace("\"", ""))
+      	.map(Flight.assign(_))
+      	.filter(_.DEP_TIME != null) // flights that never depart
+      	.filter(_.ARR_TIME != null) // flights that never arrive
+      	    
+    /*
+     * make a DataFrame from the RDD 
+     */
+    var flightsDF = sqlContext.createDataFrame(flightsRDD)
+    
+    //flightsDF.printSchema()
+    //flightsDF.show(50)
+     
+    println("Save flights to Aerospike")
+    flightsDF.write.
+    	mode(SaveMode.Overwrite).
+    	format("com.aerospike.spark.sql").
+    	option("aerospike.seedhost", seedHost).
+    	option("aerospike.port", port.toString).
+    	option("aerospike.namespace", namespace).
+    	option("aerospike.set", "spark-test").
+    	option("aerospike.updateByKey", "key").
+    	option("aerospike.ttlColumn", "expiry").
+    	save()         
+    	
+    	println("flights saved")
+  }
 	/*
 	 * find all the flights that are late
 	 */
 	println("Find late flights from Aerospike")
-	flightsDF = sqlContext.read.
+	val readFlightsDF = sqlContext.read.
   	format("com.aerospike.spark.sql").
-  	option("aerospike.seedhost", "127.0.0.1").
-  	option("aerospike.port", "3000").
-  	option("aerospike.namespace", "test").
+  	option("aerospike.seedhost", seedHost).
+  	option("aerospike.port", port.toString).
+  	option("aerospike.namespace", namespace).
   	option("aerospike.set", "spark-test").
   	load 
-	
-	flightsDF.show(5)
+	readFlightsDF.printSchema()
+	//readFlightsDF.show(1)
 
   }
 }
@@ -329,14 +328,22 @@ object Flight{
 									toDouble(values(17)),
 									toDouble(values(18)),
 									formKey(values),
-									300
+									-1
 									)
 							flight
 	}
 
 	def formKey(values:Array[String]): String = {
-			val dep = if (values(13).isEmpty) "XXXX" else values(13)
-					values(5)+values(7)+":"+values(4)+":"+dep
+			val dep = formKey(values(13),
+			      values(5),
+			      values(7),
+			      values(4))
+			dep
+	}
+	
+	def formKey(depTime:String, carrier:String, flNumber:String, flDate:String): String = {
+			val dep = if (depTime.isEmpty) "XXXX" else depTime
+			carrier+flNumber+":"+flDate + ":" + dep
 	}
 
 	def toDouble(doubleString: String): Double = {
