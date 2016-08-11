@@ -32,12 +32,13 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   var sc:SparkContext = _
   var sqlContext: SQLContext = _
   var thingsDF: DataFrame = _
+  val seedHost = "52.209.148.20"     // "127.0.0.1"
+  val namespace = "mem"              // "test"
   
   val TEST_COUNT = 100
   
-  val namespace = "test"
-  val seedHost = "localhost"
   val port = 3000
+  val config = AerospikeConfig.newConfig(seedHost, 3000, 10000)
   
   before {
     conf = new SparkConf().setMaster("local[*]")
@@ -58,7 +59,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
 
   
   it should "create test data" in {
-    client = AerospikeConnection.getClient(seedHost, port)
+    client = AerospikeConnection.getClient(config)
     Value.UseDoubleType = true
     for (i <- 1 to TEST_COUNT) {
       val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
@@ -83,7 +84,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
 		val result = thingsDF.take(50)
 		result.foreach { row => 
 		    assert(row.getAs[String]("two").startsWith("two:"))
-      }
+    }
   }
   
   it should " select the data using filter on 'one'" in {
@@ -159,7 +160,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   
 
   it should " delete the test data" in {
-    client = AerospikeConnection.getClient("localhost", 3000)
+    client = AerospikeConnection.getClient(config)
 
     for (i <- 1 to TEST_COUNT) {
       val key = new Key(namespace, "rdd-test", "rdd-test-"+i)

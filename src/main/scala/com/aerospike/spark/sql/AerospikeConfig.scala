@@ -7,16 +7,16 @@ import com.aerospike.client.policy.GenerationPolicy
  * this class is a container for the properties used during the
  * the read and save functions 
  */
-class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
+class AerospikeConfig private(val properties: Map[String, Any]) extends Serializable {
 
-  
-	def this(seedHost: String, port: String) {
-    this( Map(AerospikeConfig.SeedHost -> seedHost, AerospikeConfig.Port -> port.toInt) )
-  }
-	
-	def this(seedHost: String, port: Int) {
-    this( Map(AerospikeConfig.SeedHost -> seedHost, AerospikeConfig.Port -> port) )
-  }
+//  
+//	private def this (seedHost: String, port: String) {
+//    this( Map(AerospikeConfig.SeedHost -> seedHost, AerospikeConfig.Port -> port.toInt) )
+//  }
+//	
+//	private def this(seedHost: String, port: Int) {
+//    this( Map(AerospikeConfig.SeedHost -> seedHost, AerospikeConfig.Port -> port) )
+//  }
 	
 	def get(key: String): Any =
     properties.get(key.toLowerCase()).getOrElse(notFound(key))
@@ -51,6 +51,9 @@ class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 	  get(AerospikeConfig.SchemaScan).asInstanceOf[Int]
 	}
 	
+	def timeOut(): Int = {
+	  get(AerospikeConfig.TimeOut).asInstanceOf[Int]
+	}
 	def keyColumn(): String = {
 	  get(AerospikeConfig.KeyColumn).asInstanceOf[String]
 	}
@@ -87,14 +90,17 @@ class AerospikeConfig(val properties: Map[String, Any]) extends Serializable {
 	
   private def notFound[T](key: String): T =
     throw new IllegalStateException(s"Config item $key not specified")
-
+  
+  
 }
 
 object AerospikeConfig {
+  
 	private val defaultValues = scala.collection.mutable.Map[String, Any](
 	        AerospikeConfig.SeedHost -> "127.0.0.1", 
 	        AerospikeConfig.Port -> 3000,
 	        AerospikeConfig.SchemaScan -> 100,
+	        AerospikeConfig.TimeOut -> 1000,
 	        AerospikeConfig.NameSpace -> "test",
 	        AerospikeConfig.KeyColumn -> "__key",
 	        AerospikeConfig.DigestColumn -> "__digest",
@@ -112,7 +118,7 @@ object AerospikeConfig {
 	defineProperty(Port, 3000)
 
 	val TimeOut = "aerospike.timeout"
-	defineProperty(TimeOut, 0)
+	defineProperty(TimeOut, 1000)
 	
 	val sendKey = "aerospike.sendKey"
 	defineProperty(sendKey, false)
@@ -153,7 +159,29 @@ object AerospikeConfig {
 	val TTLColumn = "aerospike.ttlColumn"
 	defineProperty(TTLColumn, "__ttl")
 
-	def apply(props: Map[String, Any] = null) = {
+
+	private def defineProperty(key: String, defaultValue: Any) : Unit = {
+		val lowerKey = key.toLowerCase()
+		if(defaultValues.contains(lowerKey))
+				sys.error(s"Config property already defined for key : $key")
+		else
+			defaultValues.put(lowerKey, defaultValue)
+	}
+	
+	def newConfig(seedHost:String, port: Any, timeOut:Any ): AerospikeConfig = {
+	  
+	  newConfig(Map(AerospikeConfig.SeedHost -> seedHost, 
+	      AerospikeConfig.Port -> port, 
+	      AerospikeConfig.TimeOut -> timeOut))
+	}
+	
+//	def newConfig(seedHost:String, port: String, timeOut:String = "10000"): AerospikeConfig = {
+//	  newConfig(Map(AerospikeConfig.SeedHost -> seedHost, 
+//	      AerospikeConfig.Port -> port.toInt, 
+//	      AerospikeConfig.TimeOut -> timeOut.toInt))
+//	}
+	
+	def newConfig(props: Map[String, Any] = null): AerospikeConfig = {
     if (props != null) {
       val ciProps = props.map(kv => kv.copy(_1 = kv._1.toLowerCase))
       
@@ -167,24 +195,5 @@ object AerospikeConfig {
       new AerospikeConfig(defaultValues.toMap)
     }
   }
-
-
-	private def defineProperty(key: String, defaultValue: Any) : Unit = {
-		val lowerKey = key.toLowerCase()
-		if(defaultValues.contains(lowerKey))
-				sys.error(s"Config property already defined for key : $key")
-		else
-			defaultValues.put(lowerKey, defaultValue)
-	}
-	
-	def newConfig(seedHost:String, port: Int): AerospikeConfig = {
-	  var conf = new AerospikeConfig(seedHost, port)
-	  conf
-	}
-	
-	def newConfig(seedHost:String, port: String): AerospikeConfig = {
-	  var conf = new AerospikeConfig(seedHost, port)
-	  conf
-	}
 
 }

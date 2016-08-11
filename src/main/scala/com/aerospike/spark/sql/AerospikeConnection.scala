@@ -2,6 +2,7 @@ package com.aerospike.spark.sql
 
 import com.aerospike.helper.query._
 import com.aerospike.client.AerospikeClient
+import com.aerospike.client.policy.ClientPolicy
 
 /**
  * This class caches the AerospikeClient. The key used to retrive the client is based on the
@@ -15,9 +16,7 @@ object AerospikeConnection {
   val queryEngineCache = new scala.collection.mutable.HashMap[AerospikeClient, QueryEngine]()
   
   def getQueryEngine(config: AerospikeConfig) : QueryEngine = synchronized {
-    val host = config.get(AerospikeConfig.SeedHost);
-    val port = config.get(AerospikeConfig.Port);
-    val client = getClient(s"$host:$port")
+    val client = getClient(config: AerospikeConfig)
     queryEngineCache.getOrElse(client, {
         val newEngine = new QueryEngine(client)
         newEngine.refreshCluster()
@@ -25,30 +24,43 @@ object AerospikeConnection {
         newEngine
       })
   }
-  def getClient(config: AerospikeConfig) : AerospikeClient = {
+  def getClient(config: AerospikeConfig) : AerospikeClient = synchronized{
     val host = config.get(AerospikeConfig.SeedHost);
     val port = config.get(AerospikeConfig.Port);
-    getClient(s"$host:$port")
-  }
-  
-   def getClient(host: String, port: Int) : AerospikeClient = {
-    getClient(s"$host:$port")
-  }
-  
-  def getClient(hostPort: String) : AerospikeClient = synchronized {
-    var client = clientCache.getOrElse(hostPort, {
-        newClient(hostPort)
+    var client = clientCache.getOrElse(s"$host:$port", {
+        newClient(config)
       })
     if (!client.isConnected())
-      client = newClient(hostPort)
+      client = newClient(config)
     client   
   }
   
-  private def newClient(hostPort: String): AerospikeClient = {
-    val splitHost = hostPort.split(":")
-        val host = splitHost(0)
-        val port = splitHost(1).toInt
-        val newClient = new AerospikeClient(host, port)
+  private def newClient(config: AerospikeConfig): AerospikeClient = {
+   
+        val host = config.get(AerospikeConfig.SeedHost).toString();
+        val portProperty = config.get(AerospikeConfig.Port);
+        val port = portProperty match {
+          case _:Int => portProperty.asInstanceOf[Int]
+          case _:String => portProperty.asInstanceOf[String].toInt
+          case None => 3000
+        }
+        val timeoutProperty = config.get(AerospikeConfig.TimeOut) 
+        val timeOut:Int = timeoutProperty match {
+          case _:Int => timeoutProperty.asInstanceOf[Int]
+          case _:String => timeoutProperty.asInstanceOf[String].toInt
+          case None => 1000
+        }
+        val clientPolicy = new ClientPolicy
+        clientPolicy.timeout = timeOut
+        clientPolicy.failIfNotConnected = true
+        val newClient = new AerospikeClient(clientPolicy, host, port)
+    
+        // set all the timeouts
+        newClient.writePolicyDefault.timeout = timeOut
+        newClient.readPolicyDefault.timeout = timeOut
+        newClient.scanPolicyDefault.timeout = timeOut
+        newClient.queryPolicyDefault.timeout = timeOut
+        
         val nodes = newClient.getNodes
         for (node <- nodes) {
           clientCache += (node.getHost.toString() -> newClient)

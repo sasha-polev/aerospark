@@ -51,11 +51,14 @@ class KeyRecordRDD(
     {
       var client = AerospikeConnection.getClient(aerospikeConfig) 
       var nodes = client.getNodes
-      for {i <- 0 until nodes.size
-           node: Node = nodes(i)
-           val name = node.getName
-           part = new AerospikePartition(i, name).asInstanceOf[Partition]
-      } yield part
+      var count = 0
+      var parts = new Array[Partition](nodes.size)
+      nodes.foreach { node => 
+        val name = node.getName
+        parts(count) = new AerospikePartition(count, name).asInstanceOf[Partition] 
+        count += 1
+        }
+      parts
     }.toArray
   }
   
@@ -87,7 +90,10 @@ class KeyRecordRDD(
       kri = queryEngine.select(stmt, false, node)
     }
 
-    context.addTaskCompletionListener(context => { kri.close() })
+    context.addTaskCompletionListener(context => { 
+      println("XX--99--XX")
+      kri.close() 
+      })
     
     
     new RowIterator(kri, schema, metaFields)

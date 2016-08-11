@@ -36,7 +36,7 @@ with CreatableRelationProvider{
 					parameters.getOrElse(AerospikeConfig.Port, sys.error(AerospikeConfig.Port + " must be specified"))
 					parameters.getOrElse(AerospikeConfig.NameSpace, sys.error(AerospikeConfig.NameSpace + " must be specified"))
 					logInfo("Creating Aerospike relation for " + AerospikeConfig.NameSpace +":"+ AerospikeConfig.SetName)
-					val conf = AerospikeConfig.apply(parameters)
+					val conf = AerospikeConfig.newConfig(parameters)
 					val ref = new AerospikeRelation(conf, null)(sqlContext)
 					return ref
 	}
@@ -47,7 +47,7 @@ with CreatableRelationProvider{
 			parameters: Map[String, String],
 			data: DataFrame): BaseRelation = {
 
-			val conf = AerospikeConfig.apply(parameters)
+			val conf = AerospikeConfig.newConfig(parameters)
 
 			saveDataFrame(data, mode, conf)
 
