@@ -46,7 +46,7 @@ The assembled JAR can be used in any Spark application providing it's on the cla
 To use connector with the spark-shell, use the `--jars` command line option and include the path to the assembled JAR.
 Example:
 ```bash
-$ spark-shell --master local[*] --jars target/scala-2.10/aerospike-spark-assembly-1.1.0.jar
+$ spark-shell --master local[*] --jars target/scala-2.10/aerospike-spark-assembly-1.1.4.jar
 ```
 Import the `com.aerospike.spark.sql._` package
 ```scala

@@ -51,18 +51,22 @@ class KeyRecordRDD(
     {
       var client = AerospikeConnection.getClient(aerospikeConfig) 
       var nodes = client.getNodes
-      for {i <- 0 until nodes.size
-           node: Node = nodes(i)
-           val name = node.getName
-           part = new AerospikePartition(i, name).asInstanceOf[Partition]
-      } yield part
+      var count = 0
+      var parts = new Array[Partition](nodes.size)
+      nodes.foreach { node => 
+        val name = node.getName
+        parts(count) = new AerospikePartition(count, name).asInstanceOf[Partition] 
+        count += 1
+        }
+      parts
     }.toArray
   }
   
   
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
     val partition: AerospikePartition = split.asInstanceOf[AerospikePartition]
-    logDebug("Starting compute() for partition: " + partition.index)
+    val partHost = partition.host
+    logInfo(s"Starting partition compute() for Aerospike host: $partHost")
     val stmt = new Statement()
     stmt.setNamespace(aerospikeConfig.namespace())
     stmt.setSetName(aerospikeConfig.set())
@@ -71,6 +75,7 @@ class KeyRecordRDD(
 
     if (requiredColumns != null && requiredColumns.length > 0){
       val binsOnly = TypeConverter.binNamesOnly(requiredColumns, metaFields)
+      logDebug(s"Bin names: $binsOnly")
       stmt.setBinNames(binsOnly: _*) 
     }
     
@@ -87,10 +92,13 @@ class KeyRecordRDD(
       kri = queryEngine.select(stmt, false, node)
     }
 
-    context.addTaskCompletionListener(context => { kri.close() })
+    context.addTaskCompletionListener(context => { 
+      logInfo(s"KeyRecordIterator closed for Aerospike host $partHost")
+      kri.close() 
+      })
     
     
-    new RowIterator(kri, schema, metaFields)
+    new RowIterator(kri, schema, aerospikeConfig, requiredColumns)
   }
   
   private def filterToQualifier(filter: Filter) = filter match {   
@@ -140,34 +148,45 @@ class KeyRecordRDD(
  * This class implement a Spark SQL row iterator.
  * It is used to iterate through the Record/Result set from the Aerospike query
  */
-class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType, metaFields: Set[String]) extends Iterator[org.apache.spark.sql.Row] {
-     
+class RowIterator[Row] (val kri: KeyRecordIterator, schema: StructType, aerospikeConfig: AerospikeConfig, requiredColumns: Array[String] = null) extends Iterator[org.apache.spark.sql.Row] with Logging{
+      
+      
       def hasNext: Boolean = {
         kri.hasNext()
       }
      
       def next: org.apache.spark.sql.Row = {
          val kr = kri.next()
-         val expiration: Int = kr.record.expiration
-         val generation: Int = kr.record.generation
-         val ttl: Int = kr.record.getTimeToLive
-         var fields = scala.collection.mutable.MutableList[Any](
-            kr.key.userKey,
-            kr.key.digest,
-            expiration,
-            generation,
-            ttl
-            )
-
-        val fieldNames = schema.fields.map { field => field.name}.toSet
          
-        // remove the meta data and sort the bins by names
-        val binsOnly = TypeConverter.binNamesOnly(fieldNames.toArray, metaFields)
-          
-        binsOnly.foreach { field => 
-          val value = TypeConverter.binToValue(schema, (field, kr.record.bins.get(field)))
-          fields += value
-        }
+         val digest: Array[Byte] = kr.key.digest
+         val digestName: String = aerospikeConfig.digestColumn()
+         
+         val userKey: Value = kr.key.userKey
+         val userKeyName: String = aerospikeConfig.keyColumn()
+         
+         val expiration: Int = kr.record.expiration
+         val expirationName: String = aerospikeConfig.expiryColumn()
+         
+         val generation: Int = kr.record.generation
+         val generationName: String = aerospikeConfig.generationColumn()
+         
+         val ttl: Int = kr.record.getTimeToLive
+         val ttlName: String = aerospikeConfig.ttlColumn()
+         
+         var fields = scala.collection.mutable.MutableList[Any]()
+         
+         requiredColumns.foreach { field => 
+            val value = field match {
+              case x if x.equals(digestName) => digest
+              case x if x.equals(userKeyName) => if (userKey != null) userKey else null
+              case x if x.equals(expirationName) => expiration
+              case x if x.equals(generationName) => generation
+              case x if x.equals(ttlName) => ttl
+              case _ => TypeConverter.binToValue(schema, (field, kr.record.bins.get(field)))
+            }
+            logDebug(s"$field = $value")
+            fields += value
+         }
         
         val row = Row.fromSeq(fields.toSeq)
         row

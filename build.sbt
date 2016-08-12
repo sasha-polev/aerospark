@@ -2,7 +2,7 @@ import sbtassembly.MergeStrategy._
 
 name := "aerospike-spark"
 
-version := "1.1.2"
+version := "1.1.4"
 
 organization := "com.aerospike"
 
@@ -12,8 +12,8 @@ javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 
 parallelExecution in test := false
 
-libraryDependencies ++= Seq("org.apache.spark" %% "spark-core" % "1.6.2" % "provided",
-	"org.apache.spark" %% "spark-sql" % "1.6.2" % "provided",
+libraryDependencies ++= Seq("org.apache.spark" %% "spark-core" % "1.6.0" % "provided",
+	"org.apache.spark" %% "spark-sql" % "1.6.0" % "provided",
 	"com.aerospike" % "aerospike-client" % "3.2.4",
 	"com.aerospike" % "aerospike-helper-java" % "1.0.6",
 	"org.scalatest" %% "scalatest" % "2.2.1" % "test")
