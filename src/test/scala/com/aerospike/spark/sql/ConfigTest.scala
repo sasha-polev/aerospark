@@ -4,8 +4,8 @@ import org.scalatest.FlatSpec
 
 class ConfigTest extends FlatSpec {
   behavior of "Aerospike Configuration"
-  val seedHost = "52.17.174.156"     // "127.0.0.1"
-  val namespace = "mem"              // "test"
+  val seedHost = "10.211.55.101" 
+  val namespace = "test"
 
   it should " create defaults" in {
     val conf = AerospikeConfig.newConfig()

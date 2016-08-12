@@ -14,8 +14,8 @@ class AerospikeConnectionTest extends FlatSpec {
   var sc:SparkContext = _
   var sqlContext: SQLContext = _
   var config: AerospikeConfig = _
-  val seedHost = "52.209.148.20"     // "127.0.0.1"
-  val namespace = "mem"              // "test"
+  val seedHost = "10.211.55.101"
+  val namespace = "test"
 
   behavior of "AerospikeConnection"
   

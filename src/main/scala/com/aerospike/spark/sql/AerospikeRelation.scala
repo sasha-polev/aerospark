@@ -76,7 +76,7 @@ class AerospikeRelation( config: AerospikeConfig, userSchema: StructType)
             val binVal = bin._2
             val binName = bin._1
             val field = TypeConverter.valueToSchema(bin)
-           // logInfo(s"Schema - Bin:$binName, Value:$binVal, Field:$field")
+           logDebug(s"Schema - Bin:$binName, Value:$binVal, Field:$field")
               bins.get(binName) match {
                 case Some(e) => bins.update(binName, field)
                 case None    => bins += binName -> field

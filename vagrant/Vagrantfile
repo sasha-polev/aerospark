@@ -1,0 +1,29 @@
+Vagrant.require_version ">= 1.4.3"
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  numNodes = 3
+  ipPrefix = "10.211.55.10"
+  r = numNodes..1
+  (r.first).downto(r.last).each do |i|
+    config.vm.define "node#{i}" do |node|
+      node.vm.box = "centos65"
+      node.vm.box = "aerospike/centos-6.5"
+      node.vm.provider "virtualbox" do |v|
+        v.name = "node#{i}"
+        v.customize ["modifyvm", :id, "--memory", "2048"]
+      end
+      node.vm.network :private_network, ip: "#{ipPrefix}#{i}"
+      node.vm.hostname = "node#{i}"
+      node.vm.provision "shell", path: "scripts/setup-centos.sh"
+      node.vm.provision "shell" do |s|
+        s.path = "scripts/setup-centos-hosts.sh"
+        s.args = "-p #{ipPrefix} -t #{numNodes}"
+      end
+      node.vm.provision "shell" do |s|
+        s.path = "scripts/setup-aerospike-config.sh"
+        s.args = "-p #{ipPrefix} -t #{numNodes} -n #{i}"
+      end
+    end
+  end
+end

@@ -24,6 +24,7 @@ import org.joda.time.DateTime
 import org.apache.spark.sql.SaveMode
 
 import org.apache.spark.sql.functions._
+import com.aerospike.client.policy.WritePolicy
 
 
 class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
@@ -32,8 +33,8 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   var sc:SparkContext = _
   var sqlContext: SQLContext = _
   var thingsDF: DataFrame = _
-  val seedHost = "52.209.148.20"     // "127.0.0.1"
-  val namespace = "mem"              // "test"
+  val seedHost = "10.211.55.101"
+  val namespace = "test"
   
   val TEST_COUNT = 100
   
@@ -61,15 +62,16 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   it should "create test data" in {
     client = AerospikeConnection.getClient(config)
     Value.UseDoubleType = true
+    val wp = new WritePolicy()
+    wp.expiration = 600 // expire data in 10 minutes
     for (i <- 1 to TEST_COUNT) {
-      val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
-      client.put(null, key,
+      val key = new Key(namespace, "rdd-test", s"rdd-test-$i")
+      client.put(wp, key,
          new Bin("one", i),
-         new Bin("two", "two:"+i),
+         new Bin("two", s"two:$i"),
          new Bin("three", i.toDouble)
       )
     }
-    
   }
   
   it should "create an AerospikeRelation" in {
@@ -80,7 +82,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
 						option("aerospike.namespace", namespace).
 						option("aerospike.set", "rdd-test").
 						load 
-	  thingsDF.printSchema()
+	  //thingsDF.printSchema()
 		val result = thingsDF.take(50)
 		result.foreach { row => 
 		    assert(row.getAs[String]("two").startsWith("two:"))
@@ -97,12 +99,14 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
 						load 
 		thingsDF.registerTempTable("things")
 		val filteredThings = sqlContext.sql("select * from things where one = 55")
+		val count = filteredThings.count()
+		assert(count > 0)
 		val thing = filteredThings.first()
 		val one = thing.getAs[Long]("one")
 		assert(one == 55)
   }
 
-    it should " select the data using range filter where 'one' the value is between 55 and 65" in {
+  it should " select the data using range filter where 'one' is between 55 and 65" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
 						option("aerospike.seedhost", seedHost).
@@ -112,6 +116,8 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
 						load 
 		thingsDF.registerTempTable("things")
 		val filteredThings = sqlContext.sql("select * from things where one between 55 and 65")
+		val count = filteredThings.count()
+		assert(count > 0)
 		val thing = filteredThings.first()
 		val one = thing.getAs[Long]("one")
 		assert(one >= 55)
@@ -157,18 +163,6 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
         save()                
   }
   
-  
-
-  it should " delete the test data" in {
-    client = AerospikeConnection.getClient(config)
-
-    for (i <- 1 to TEST_COUNT) {
-      val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
-      client.delete(null, key)
-    }
-    
-  }
-  
   it should "write data from DataFrame with expiry" in {
       
       val setName = "new-rdd-data"
@@ -181,14 +175,14 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
           StructField("ttl", IntegerType, nullable = true)
           )) 
       val rows = Seq(
-          Row("Fraser_Malcolm","Fraser", "Malcolm", 1975L, 60),
-          Row("Hawke_Bob","Hawke", "Bob", 1983L, 60),
-          Row("Keating_Paul","Keating", "Paul", 1991L, 60), 
-          Row("Howard_John","Howard", "John", 1996L, 60), 
-          Row("Rudd_Kevin","Rudd", "Kevin", 2007L, 60), 
-          Row("Gillard_Julia","Gillard", "Julia", 2010L, 60), 
-          Row("Abbott_Tony","Abbott", "Tony", 2013L, 60), 
-          Row("Tunrbull_Malcom","Tunrbull", "Malcom", 2015L, 60)
+          Row("Fraser_Malcolm","Fraser", "Malcolm", 1975L, 600),
+          Row("Hawke_Bob","Hawke", "Bob", 1983L, 600),
+          Row("Keating_Paul","Keating", "Paul", 1991L, 600), 
+          Row("Howard_John","Howard", "John", 1996L, 600), 
+          Row("Rudd_Kevin","Rudd", "Kevin", 2007L, 600), 
+          Row("Gillard_Julia","Gillard", "Julia", 2010L, 600), 
+          Row("Abbott_Tony","Abbott", "Tony", 2013L, 600), 
+          Row("Tunrbull_Malcom","Tunrbull", "Malcom", 2015L, 600)
           )
           
       val inputRDD = sc.parallelize(rows)
@@ -220,7 +214,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
 
   }
   
-  it should "write and read alot of data" in {
+  it should "write and read a lot of data" in {
    /*
 	 * Read flights data from CSV file an load them if they don't exist
 	 */
@@ -261,7 +255,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
     	println("flights saved")
   }
 	/*
-	 * find all the flights that are late
+	 * find all the flights that are > 5 minutes late
 	 */
 	println("Find late flights from Aerospike")
 	val readFlightsDF = sqlContext.read.
@@ -271,8 +265,15 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   	option("aerospike.namespace", namespace).
   	option("aerospike.set", "spark-test").
   	load 
-	readFlightsDF.printSchema()
+	
+  //readFlightsDF.printSchema()
+	readFlightsDF.registerTempTable("Flights")
 	//readFlightsDF.show(1)
+	
+	val lateFlightsDF = sqlContext.sql("select CARRIER, FL_NUM, DEP_DELAY_NEW, ARR_DELAY_NEW from Flights where ARR_DELAY_NEW > 5")  
+	
+	//lateFlightsDF.show(10)
+   assert(12907 == lateFlightsDF.count())
 
   }
 }
