@@ -9,15 +9,6 @@ import com.aerospike.client.policy.GenerationPolicy
  */
 class AerospikeConfig private(val properties: Map[String, Any]) extends Serializable {
 
-//  
-//	private def this (seedHost: String, port: String) {
-//    this( Map(AerospikeConfig.SeedHost -> seedHost, AerospikeConfig.Port -> port.toInt) )
-//  }
-//	
-//	private def this(seedHost: String, port: Int) {
-//    this( Map(AerospikeConfig.SeedHost -> seedHost, AerospikeConfig.Port -> port) )
-//  }
-	
 	def get(key: String): Any =
     properties.get(key.toLowerCase()).getOrElse(notFound(key))
 
@@ -175,11 +166,6 @@ object AerospikeConfig {
 	      AerospikeConfig.TimeOut -> timeOut))
 	}
 	
-//	def newConfig(seedHost:String, port: String, timeOut:String = "10000"): AerospikeConfig = {
-//	  newConfig(Map(AerospikeConfig.SeedHost -> seedHost, 
-//	      AerospikeConfig.Port -> port.toInt, 
-//	      AerospikeConfig.TimeOut -> timeOut.toInt))
-//	}
 	
 	def newConfig(props: Map[String, Any] = null): AerospikeConfig = {
     if (props != null) {

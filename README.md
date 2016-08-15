@@ -239,3 +239,34 @@ The number of records scanned can be changed by using the option:
 ```
 Note: the schema is derived each time `load` is called. If you call `load` before the Aerospike namespace/set has any data, only the meta-data columns will be available.
 
+
+## Save mode reference
+
+Save mode| Record Exists Policy
+---------|---------------------
+ErrorIfExists|CREATE_ONLYIgnore|CREATE_ONLY
+Overwrite|REPLACE
+Append|UPDATE_ONLY
+
+## Options reference
+
+Option|Description|Default value
+------|-----------|-------------
+aerospike.seedhost|A host name or address of the cluster| "127.0.0.1"
+aerospike.port|Port of Aerospike| 3000
+aerospike.timeout|Timeout for all operations in milliseconds|1000
+aerospike.sendKey|If true, store the value of the primary key|false
+aerospike.commitLevel|Consistency guarantee when committing a transaction on the server|CommitLevel.COMMIT_ALL
+aerospike.generationPolicy|ow to handle record writes based on record generation|GenerationPolicy.NONE
+aerospike.namespace|Aerospike Namespace|"test"
+aerospike.set|Aerospike Set|no default
+aerospike.updateByKey|This option specifies that updates are done by key with the value in the column specified ```option("aerospike.updateByKey", "key")```|
+aerospike.updateByDigest|This option specifies that updates are done by digest with the value in the column specified ```option("aerospike.updateByDigest", "Digest")```|
+aerospike.schema.scan|The number of records to scan to infer schema|100
+aerospike.keyColumn|The name of the key column in the Data Frame|"__key"
+aerospike.digestColumn|The name of the digest column in the Data Frame|"__digest"
+aerospike.expiryColumn|The name of the expiry column in the Data Frame|"__expiry"
+aerospike.generationColumn|The name of the generation column in the Data Frame|"__generation"
+aerospike.ttlColumn|The name of the TTL column in the Data Frame|"__ttl"
+
+
