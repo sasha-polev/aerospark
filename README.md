@@ -239,6 +239,15 @@ The number of records scanned can be changed by using the option:
 ```
 Note: the schema is derived each time `load` is called. If you call `load` before the Aerospike namespace/set has any data, only the meta-data columns will be available.
 
+
+## Save mode reference
+
+Save mode| Record Exists Policy
+---------|---------------------
+ErrorIfExists|CREATE_ONLYIgnore|CREATE_ONLY
+Overwrite|REPLACE
+Append|UPDATE_ONLY
+
 ## Options reference
 
 Option|Description|Default value
