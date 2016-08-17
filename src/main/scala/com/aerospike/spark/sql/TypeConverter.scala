@@ -21,6 +21,7 @@ import collection.JavaConverters._
 
 import com.aerospike.client.Bin
 
+
 /**
  * This object provides utility methods to convert between
  * the Aerospike and park SQL types
@@ -55,7 +56,7 @@ object TypeConverter{
 		      //println(binVal.getClass.getCanonicalName)
 		      binVal
 		  }
-		  case _: MapType => if (binVal == null) null else binVal.asInstanceOf[java.util.Map[Any,Any]]
+		  case _: MapType => if (binVal == null) null else binVal.asInstanceOf[java.util.Map[Any,Any]].asScala
 		  case null => null
 		  case _ => if (binVal == null) null else binVal.toString()
 		}
@@ -84,7 +85,11 @@ object TypeConverter{
   		      case _: List[Any] => new Bin(field, value)
   		    }
   		  }
-  		  case _: MapType => new Bin(field, value.asInstanceOf[java.util.Map[Any, Any]])
+  		  case _: MapType => {
+  		    value match {
+  		      case _: scala.collection.Map[Any, Any] => new Bin(field, value.asInstanceOf[scala.collection.Map[Any, Any]].asJava)
+  		    }
+  		  }
   		  case null => Bin.asNull(field)
   		  case _ => new Bin(field, value.toString())
         }
@@ -103,8 +108,8 @@ object TypeConverter{
 					case _: java.lang.Float => StructField(binName, DoubleType, nullable = true)
 					case s: String => StructField(binName, StringType, nullable = true)
 					case _: java.util.Map[Object,Object] => {
-					  val aKey = valueToSchema((binName, binVal.asInstanceOf[Map[Object, Object]].keys.head))
-					  val aValue = valueToSchema((binName, binVal.asInstanceOf[Map[Object, Object]].values.head))
+					  val aKey = valueToSchema((binName, binVal.asInstanceOf[java.util.Map[Object, Object]].asScala.keys.head))
+					  val aValue = valueToSchema((binName, binVal.asInstanceOf[java.util.Map[Object, Object]].asScala.values.head))
 					  StructField(binName, new MapType(aKey.dataType, aValue.dataType, true), nullable = true) 
 					}
 					case _: java.util.List[Object] => { 
