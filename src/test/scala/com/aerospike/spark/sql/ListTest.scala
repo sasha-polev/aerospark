@@ -38,15 +38,12 @@ class ListTest extends FlatSpec with BeforeAndAfter{
   var sc:SparkContext = _
   var sqlContext: SQLContext = _
   var thingsDF: DataFrame = _
-  val seedHost = "10.211.55.101"
-  val namespace = "test"
   val set = "lists"
   val listBin = "list-of-things"
   
   val TEST_COUNT = 100
   
-  val port = 3000
-  val config = AerospikeConfig.newConfig(seedHost, 3000, 1000)
+  val config = AerospikeConfig.newConfig(Globals.seedHost, 3000, 1000)
   
   before {
     conf = new SparkConf().setMaster("local[*]")
@@ -74,7 +71,7 @@ class ListTest extends FlatSpec with BeforeAndAfter{
     // Create many records with values in a list
 		val rand = new Random(300);
 		for (i <- 1 to TEST_COUNT){
-			val newKey = new Key(namespace, set, s"a-record-with-a-list-$i")
+			val newKey = new Key(Globals.namespace, set, s"a-record-with-a-list-$i")
 			var aList = new ArrayList[Long]();
 		  for ( j <- 1 to TEST_COUNT){
 				val newInt = rand.nextInt(200) + 250L
@@ -87,9 +84,9 @@ class ListTest extends FlatSpec with BeforeAndAfter{
   it should "read list data" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", seedHost).
-						option("aerospike.port", port.toString).
-						option("aerospike.namespace", namespace).
+						option("aerospike.seedhost", Globals.seedHost).
+						option("aerospike.port", Globals.port.toString).
+						option("aerospike.namespace", Globals.namespace).
 						option("aerospike.set", set).
 						load 
 	  thingsDF.printSchema()
@@ -130,27 +127,27 @@ class ListTest extends FlatSpec with BeforeAndAfter{
     newDF.write.
         mode(SaveMode.Overwrite).
         format("com.aerospike.spark.sql").
-        option("aerospike.seedhost", seedHost).
-						option("aerospike.port", port.toString).
-						option("aerospike.namespace", namespace).
+        option("aerospike.seedhost", Globals.seedHost).
+						option("aerospike.port", Globals.port.toString).
+						option("aerospike.namespace", Globals.namespace).
 						option("aerospike.set", set).
 						option("aerospike.updateByKey", "key").
 						option("aerospike.ttlColumn", "ttl").
         save()  
         
-    var poliKey = new Key(namespace, set, "Fraser_Malcolm")
+    var poliKey = new Key(Globals.namespace, set, "Fraser_Malcolm")
     val fraser = client.get(null, poliKey)
     assert(fraser != null)
     val fraserList = fraser.getList(listBin)
     assert(fraserList.get(0) == 1975L)
     
-    poliKey = new Key(namespace, set, "Gillard_Julia")
+    poliKey = new Key(Globals.namespace, set, "Gillard_Julia")
     val gillard = client.get(null, poliKey)
     assert(gillard != null)
     val gillardList = gillard.getList(listBin)
 	  assert(gillardList.get(1) == 2013L)
 
-    poliKey = new Key(namespace, set, "Tunrbull_Malcom")
+    poliKey = new Key(Globals.namespace, set, "Tunrbull_Malcom")
     val tunrbull = client.get(null, poliKey)
     assert(tunrbull != null)
     val tunrbullList = tunrbull.getList(listBin)

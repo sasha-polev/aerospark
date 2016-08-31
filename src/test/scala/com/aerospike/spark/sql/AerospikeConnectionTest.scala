@@ -14,17 +14,15 @@ class AerospikeConnectionTest extends FlatSpec {
   var sc:SparkContext = _
   var sqlContext: SQLContext = _
   var config: AerospikeConfig = _
-  val seedHost = "10.211.55.101"
-  val namespace = "test"
 
   behavior of "AerospikeConnection"
   
   it should " test Client witnout Spark" in {
-    config = AerospikeConfig.newConfig(seedHost, 3000, 10000)
+    config = AerospikeConfig.newConfig(Globals.seedHost, Globals.port, 10000)
     var client = AerospikeConnection.getClient(config)
 
     for (i <- 1 to 100) {
-      val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
+      val key = new Key(Globals.namespace, "rdd-test", "rdd-test-"+i)
       client.put(null, key,
          new Bin("one", i),
          new Bin("two", "two:"+i),
@@ -42,7 +40,7 @@ class AerospikeConnectionTest extends FlatSpec {
     var client = AerospikeConnection.getClient(config)
 
     for (i <- 1 to 100) {
-      val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
+      val key = new Key(Globals.namespace, "rdd-test", "rdd-test-"+i)
       client.put(null, key,
          new Bin("one", i),
          new Bin("two", "two:"+i),
@@ -53,11 +51,11 @@ class AerospikeConnectionTest extends FlatSpec {
   
   it should " test Client with Spark and Config" in {
     
-    config = AerospikeConfig.newConfig(seedHost, 3000, 10000)
+    config = AerospikeConfig.newConfig(Globals.seedHost, Globals.port, 10000)
     var client = AerospikeConnection.getClient(config)
 
     for (i <- 1 to 100) {
-      val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
+      val key = new Key(Globals.namespace, "rdd-test", "rdd-test-"+i)
       client.put(null, key,
          new Bin("one", i),
          new Bin("two", "two:"+i),
@@ -69,7 +67,7 @@ class AerospikeConnectionTest extends FlatSpec {
      var qe = AerospikeConnection.getQueryEngine(config)
      
      var stmt = new Statement()
-     stmt.setNamespace(namespace)
+     stmt.setNamespace(Globals.namespace)
      stmt.setSetName("rdd-test")
      val kri = qe.select(stmt)
      var count = 0
@@ -86,7 +84,7 @@ class AerospikeConnectionTest extends FlatSpec {
      val qe = AerospikeConnection.getQueryEngine(config)
      
      var stmt = new Statement()
-     stmt.setNamespace(namespace)
+     stmt.setNamespace(Globals.namespace)
      stmt.setSetName("rdd-test")
      val kri = qe.select(stmt)
      var count = 0
