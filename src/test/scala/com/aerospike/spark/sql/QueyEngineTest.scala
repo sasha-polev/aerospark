@@ -22,8 +22,6 @@ import com.aerospike.client.policy.WritePolicy
 
 class QueyEngineTest extends FlatSpec{
 
-  val seedHost = "10.211.55.101"
-  val namespace = "test"
   
 	val ages = Array(25,26,27,28,29)
 			val colours = Array("blue","red","yellow","green","orange")
@@ -37,7 +35,7 @@ class QueyEngineTest extends FlatSpec{
 			behavior of "QueryEngine from Scala"
 
 			it should "Get a client from cache" in {
-				config = AerospikeConfig.newConfig(seedHost, 3000, 20000)
+				config = AerospikeConfig.newConfig(Globals.seedHost, Globals.port, 20000)
 				val client = AerospikeConnection.getClient(config)
 			}
 
@@ -62,7 +60,7 @@ class QueyEngineTest extends FlatSpec{
 							val age = new Bin("age", ages(i));
 							val colour = new Bin("color", colours(i));
 							val animal = new Bin("animal", animals(i));
-							val key = new Key(namespace, "selector", "selector-test:"+ x)
+							val key = new Key(Globals.namespace, "selector", "selector-test:"+ x)
 									cl.put(null, key, name, age, colour, animal)
 									i += 1
 									if ( i == 5)
@@ -73,7 +71,7 @@ class QueyEngineTest extends FlatSpec{
 			it should "Select data" in {
 				val qe = AerospikeConnection.getQueryEngine(config)
 				val stmt = new Statement()
-				stmt.setNamespace(namespace)
+				stmt.setNamespace(Globals.namespace)
 				stmt.setSetName("selector")
 				var it = qe.select(stmt)
 				for (row <- it) {
@@ -93,7 +91,7 @@ class QueyEngineTest extends FlatSpec{
 							
 							val qe = AerospikeConnection.getQueryEngine(config)
 							val stmt = new Statement()
-							stmt.setNamespace(namespace)
+							stmt.setNamespace(Globals.namespace)
 							stmt.setSetName("selector")
 							println("\tStarted query " + i)
 							var it = qe.select(stmt)
@@ -133,7 +131,7 @@ class QueyEngineTest extends FlatSpec{
 						override def run {
 						  val qe = AerospikeConnection.getQueryEngine(config)
 				      val stmt = new Statement()
-				      stmt.setNamespace(namespace)
+				      stmt.setNamespace(Globals.namespace)
 				      stmt.setSetName("selector")
 						  println("\tStarted partition " + i)
   				    var it = qe.select(stmt, false, nodes(i))
@@ -166,7 +164,7 @@ class QueyEngineTest extends FlatSpec{
 							val age = new Bin("age", ages(i));
 							val colour = new Bin("color", colours(i));
 							val animal = new Bin("animal", animals(i));
-							val key = new Key(namespace, "selector", "selector-test:"+ x)
+							val key = new Key(Globals.namespace, "selector", "selector-test:"+ x)
 									cl.delete(null, key)
 									i += 1
 									if ( i == 5)

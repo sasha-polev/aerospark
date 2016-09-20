@@ -4,8 +4,6 @@ import org.scalatest.FlatSpec
 
 class ConfigTest extends FlatSpec {
   behavior of "Aerospike Configuration"
-  val seedHost = "10.211.55.101" 
-  val namespace = "test"
 
   it should " create defaults" in {
     val conf = AerospikeConfig.newConfig()
@@ -21,15 +19,15 @@ class ConfigTest extends FlatSpec {
   }
   
   it should " create defaults with overrides" in {
-    val parameters = Map(AerospikeConfig.SeedHost -> seedHost, 
+    val parameters = Map(AerospikeConfig.SeedHost -> Globals.seedHost, 
         AerospikeConfig.Port -> 4000,
-        AerospikeConfig.NameSpace -> namespace,
+        AerospikeConfig.NameSpace -> Globals.namespace,
         AerospikeConfig.KeyColumn -> "_my_key") 
     val conf = AerospikeConfig.newConfig(parameters)
 
     assert(conf.port() == 4000)
-    assert(conf.seedHost() == seedHost)
-    assert(conf.namespace() == namespace)
+    assert(conf.seedHost() == Globals.seedHost)
+    assert(conf.namespace() == Globals.namespace)
     assert(conf.keyColumn() == "_my_key")
     assert(conf.digestColumn() == "__digest")
     assert(conf.expiryColumn() == "__expiry")
@@ -39,16 +37,16 @@ class ConfigTest extends FlatSpec {
   }
   
     it should " create with timeout" in {
-    val parameters = Map(AerospikeConfig.SeedHost -> seedHost, 
+    val parameters = Map(AerospikeConfig.SeedHost -> Globals.seedHost, 
         AerospikeConfig.Port -> 4000,
         AerospikeConfig.TimeOut -> 600,
-        AerospikeConfig.NameSpace -> namespace,
+        AerospikeConfig.NameSpace -> Globals.namespace,
         AerospikeConfig.KeyColumn -> "_my_key") 
     val conf = AerospikeConfig.newConfig(parameters)
 
     assert(conf.port() == 4000)
-    assert(conf.seedHost() == seedHost)
-    assert(conf.namespace() == namespace)
+    assert(conf.seedHost() == Globals.seedHost)
+    assert(conf.namespace() == Globals.namespace)
     assert(conf.keyColumn() == "_my_key")
     assert(conf.digestColumn() == "__digest")
     assert(conf.expiryColumn() == "__expiry")

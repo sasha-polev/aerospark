@@ -33,13 +33,10 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   var sc:SparkContext = _
   var sqlContext: SQLContext = _
   var thingsDF: DataFrame = _
-  val seedHost = "10.211.55.101"
-  val namespace = "test"
   
   val TEST_COUNT = 100
   
-  val port = 3000
-  val config = AerospikeConfig.newConfig(seedHost, 3000, 10000)
+  val config = AerospikeConfig.newConfig(Globals.seedHost, Globals.port, 10000)
   
   before {
     conf = new SparkConf().setMaster("local[*]")
@@ -65,7 +62,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
     val wp = new WritePolicy()
     wp.expiration = 600 // expire data in 10 minutes
     for (i <- 1 to TEST_COUNT) {
-      val key = new Key(namespace, "rdd-test", s"rdd-test-$i")
+      val key = new Key(Globals.namespace, "rdd-test", s"rdd-test-$i")
       client.put(wp, key,
          new Bin("one", i),
          new Bin("two", s"two:$i"),
@@ -77,9 +74,9 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   it should "create an AerospikeRelation" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", seedHost).
-						option("aerospike.port", port.toString).
-						option("aerospike.namespace", namespace).
+						option("aerospike.seedhost", Globals.seedHost).
+						option("aerospike.port", Globals.port.toString).
+						option("aerospike.namespace", Globals.namespace).
 						option("aerospike.set", "rdd-test").
 						load 
 	  //thingsDF.printSchema()
@@ -92,9 +89,9 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   it should " select the data using filter on 'one'" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", seedHost).
-						option("aerospike.port", port.toString).
-						option("aerospike.namespace", namespace).
+						option("aerospike.seedhost", Globals.seedHost).
+						option("aerospike.port", Globals.port.toString).
+						option("aerospike.namespace", Globals.namespace).
 						option("aerospike.set", "rdd-test").
 						load 
 		thingsDF.registerTempTable("things")
@@ -109,9 +106,9 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   it should " select the data using range filter where 'one' is between 55 and 65" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", seedHost).
-						option("aerospike.port", port.toString).
-						option("aerospike.namespace", namespace).
+						option("aerospike.seedhost", Globals.seedHost).
+						option("aerospike.port", Globals.port.toString).
+						option("aerospike.namespace", Globals.namespace).
 						option("aerospike.set", "rdd-test").
 						load 
 		thingsDF.registerTempTable("things")
@@ -128,17 +125,17 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   it should "save with Overwrite (RecordExistsAction.REPLACE)" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", seedHost).
-						option("aerospike.port", port.toString).
-						option("aerospike.namespace", namespace).
+						option("aerospike.seedhost", Globals.seedHost).
+						option("aerospike.port", Globals.port.toString).
+						option("aerospike.namespace", Globals.namespace).
 						option("aerospike.set", "rdd-test").
 						load 
     thingsDF.write.
         mode(SaveMode.Overwrite).
         format("com.aerospike.spark.sql").
-        option("aerospike.seedhost", seedHost).
-						option("aerospike.port", port.toString).
-						option("aerospike.namespace", namespace).
+        option("aerospike.seedhost", Globals.seedHost).
+						option("aerospike.port", Globals.port.toString).
+						option("aerospike.namespace", Globals.namespace).
 						option("aerospike.set", "rdd-test").
 						option("aerospike.updateByDigest", "__digest").
         save()                
@@ -147,17 +144,17 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
   it should "save with Ignore (RecordExistsAction.CREATE_ONLY)" in {
 		thingsDF = sqlContext.read.
 						format("com.aerospike.spark.sql").
-						option("aerospike.seedhost", seedHost).
-						option("aerospike.port", port.toString).
-						option("aerospike.namespace", namespace).
+						option("aerospike.seedhost", Globals.seedHost).
+						option("aerospike.port", Globals.port.toString).
+						option("aerospike.namespace", Globals.namespace).
 						option("aerospike.set", "rdd-test").
 						load 
     thingsDF.write.
         mode(SaveMode.Ignore).
         format("com.aerospike.spark.sql").
-        option("aerospike.seedhost", seedHost).
-						option("aerospike.port", port.toString).
-						option("aerospike.namespace", namespace).
+        option("aerospike.seedhost", Globals.seedHost).
+						option("aerospike.port", Globals.port.toString).
+						option("aerospike.namespace", Globals.namespace).
 						option("aerospike.set", "rdd-test").
 						option("aerospike.updateByDigest", "__digest").
         save()                
@@ -192,23 +189,23 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
       newDF.write.
         mode(SaveMode.Ignore).
         format("com.aerospike.spark.sql").
-        option("aerospike.seedhost", seedHost).
-						option("aerospike.port", port.toString).
-						option("aerospike.namespace", namespace).
+        option("aerospike.seedhost", Globals.seedHost).
+						option("aerospike.port", Globals.port.toString).
+						option("aerospike.namespace", Globals.namespace).
 						option("aerospike.set", setName).
 						option("aerospike.updateByKey", "key").
 						option("aerospike.ttlColumn", "ttl").  // new time to live from column
         save()       
       
-      var key = new Key(namespace, setName, "Fraser_Malcolm")
+      var key = new Key(Globals.namespace, setName, "Fraser_Malcolm")
       var record = client.get(null, key)
       assert(record.getString("last") == "Fraser")
       
-      key = new Key(namespace, setName, "Hawke_Bob")
+      key = new Key(Globals.namespace, setName, "Hawke_Bob")
       record = client.get(null, key)
       assert(record.getString("first") == "Bob")
 
-      key = new Key(namespace, setName, "Gillard_Julia")
+      key = new Key(Globals.namespace, setName, "Gillard_Julia")
       record = client.get(null, key)
       assert(record.getLong("when") == 2010)
 
@@ -218,7 +215,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
    /*
 	 * Read flights data from CSV file an load them if they don't exist
 	 */
-  val checkKey: Key = new Key(namespace, "spark-test", Flight.formKey("2313", "AA", "655", "20151-1-10"))
+  val checkKey: Key = new Key(Globals.namespace, "spark-test", Flight.formKey("2313", "AA", "655", "20151-1-10"))
       
   if (!client.exists(null, checkKey)) {
     val rawFlightsRDD = sc.textFile("data/flightsaa.csv")
@@ -244,9 +241,9 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
     flightsDF.write.
     	mode(SaveMode.Overwrite).
     	format("com.aerospike.spark.sql").
-    	option("aerospike.seedhost", seedHost).
-    	option("aerospike.port", port.toString).
-    	option("aerospike.namespace", namespace).
+    	option("aerospike.seedhost", Globals.seedHost).
+    	option("aerospike.port", Globals.port.toString).
+    	option("aerospike.namespace", Globals.namespace).
     	option("aerospike.set", "spark-test").
     	option("aerospike.updateByKey", "key").
     	option("aerospike.ttlColumn", "expiry").
@@ -260,9 +257,9 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter{
 	println("Find late flights from Aerospike")
 	val readFlightsDF = sqlContext.read.
   	format("com.aerospike.spark.sql").
-  	option("aerospike.seedhost", seedHost).
-  	option("aerospike.port", port.toString).
-  	option("aerospike.namespace", namespace).
+  	option("aerospike.seedhost", Globals.seedHost).
+  	option("aerospike.port", Globals.port.toString).
+  	option("aerospike.namespace", Globals.namespace).
   	option("aerospike.set", "spark-test").
   	load 
 	
