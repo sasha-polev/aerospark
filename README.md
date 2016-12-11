@@ -72,7 +72,7 @@ Load some data into Aerospike with:
 ```scala
     val TEST_COUNT = 100
     val namespace = "test"
-    var client = AerospikeConnection.getClient("localhost", 3000)
+    var client=AerospikeConnection.getClient(AerospikeConfig.newConfig("localhost",3000,1000))
     Value.UseDoubleType = true
     for (i <- 1 to TEST_COUNT) {
       val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
@@ -244,7 +244,8 @@ Note: the schema is derived each time `load` is called. If you call `load` befor
 
 Save mode| Record Exists Policy
 ---------|---------------------
-ErrorIfExists|CREATE_ONLYIgnore|CREATE_ONLY
+ErrorIfExists|CREATE_ONLY
+Ignore|CREATE_ONLY
 Overwrite|REPLACE
 Append|UPDATE_ONLY
 

@@ -19,7 +19,6 @@ fork in test := true
 libraryDependencies ++= Seq(
   "org.apache.spark"           %% "spark-core"            % "2.0.0" % Provided,
   "org.apache.spark"           %% "spark-sql"             % "2.0.0" % Provided,
-  "com.aerospike"              %  "aerospike-client"      % "3.2.4",
   "com.aerospike"              %  "aerospike-helper-java" % "1.0.6",
   "com.typesafe.scala-logging" %% "scala-logging-slf4j"   % "2.1.2",
   "org.scalatest"              %% "scalatest"             % "2.2.1" % Test
@@ -35,6 +34,8 @@ assemblyMergeStrategy in assembly := {
   case PathList(ps @ _*) if Assembly.isReadme(ps.last) || Assembly.isLicenseFile(ps.last) =>
     MergeStrategy.rename
   case PathList("META-INF", "maven","com.aerospike","aerospike-client", "pom.properties") =>
+    MergeStrategy.discard
+  case PathList("META-INF", "maven","com.aerospike","aerospike-client", "pom.xml") =>
     MergeStrategy.discard
   case PathList("META-INF", xs @ _*) =>
     xs.map(_.toLowerCase) match {
