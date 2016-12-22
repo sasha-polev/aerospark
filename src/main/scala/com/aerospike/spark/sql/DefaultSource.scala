@@ -75,7 +75,7 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
       case SaveMode.ErrorIfExists => policy.recordExistsAction = RecordExistsAction.CREATE_ONLY
       case SaveMode.Ignore => policy.recordExistsAction = RecordExistsAction.CREATE_ONLY
       case SaveMode.Overwrite => policy.recordExistsAction = RecordExistsAction.REPLACE
-      case SaveMode.Append => policy.recordExistsAction = RecordExistsAction.UPDATE_ONLY
+      case SaveMode.Append => policy.recordExistsAction = RecordExistsAction.UPDATE
     }
 
     val genPol = config.get(AerospikeConfig.generationPolicy)
