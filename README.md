@@ -27,7 +27,7 @@ When maven is complete the `aerospike-helper-java` JAR will be installed in your
 To build the Spark connector:
 Clone the [Aerospike Spark](https://github.com/citrusleaf/aerospark/.git) repository using this command:
 ```bash
-$ git clone https://github.com/citrusleaf/aerospark/.git
+$ git clone https://github.com/aerospike/aerospark
 ```
 After cloning the repository, build the uber jar using:
 ```bash
