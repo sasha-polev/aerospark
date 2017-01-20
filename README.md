@@ -25,7 +25,7 @@ $ mvn clean install -DskipTests
 When maven is complete the `aerospike-helper-java` JAR will be installed in your local maven repository
 
 To build the Spark connector:
-Clone the [Aerospike Spark](https://github.com/citrusleaf/aerospark/.git) repository using this command:
+Clone the [Aerospike Spark](https://github.com/aerospike/aerospark) repository using this command:
 ```bash
 $ git clone https://github.com/aerospike/aerospark
 ```
