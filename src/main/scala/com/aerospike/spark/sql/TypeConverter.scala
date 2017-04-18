@@ -38,6 +38,7 @@ object TypeConverter{
           case _: DoubleType =>  Option(binVal).map(_.asInstanceOf[java.lang.Number].doubleValue()).orNull
           case _: ArrayType => binVal
           case _: MapType => Option(binVal).map(_.asInstanceOf[java.util.Map[Any,Any]].asScala).orNull
+          case _: BinaryType => Option(binVal).map(_.asInstanceOf[Array[Byte]]).orNull
           case null => null
           case _ => Option(binVal).map(_.toString).orNull
         }
