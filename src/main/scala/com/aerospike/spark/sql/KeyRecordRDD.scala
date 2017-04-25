@@ -4,7 +4,7 @@ import org.apache.spark._
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.sources.{EqualTo, Filter, GreaterThan, GreaterThanOrEqual, IsNotNull, LessThan, LessThanOrEqual, StringEndsWith, StringStartsWith}
+import org.apache.spark.sql.sources.{EqualTo, Filter, GreaterThan, GreaterThanOrEqual, IsNotNull, LessThan, LessThanOrEqual, StringEndsWith, StringStartsWith, And, Or}
 import org.apache.spark.sql.types.StructType
 import com.aerospike.client.Value
 import com.aerospike.client.query.Statement
@@ -13,7 +13,6 @@ import com.aerospike.helper.query.Qualifier.FilterOperation
 import com.typesafe.scalalogging.slf4j.LazyLogging
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.sql.types.MapType
-
 
 case class AerospikePartition(index: Int, host: String) extends Partition
 
@@ -79,8 +78,12 @@ class KeyRecordRDD(
     })
     new RowIterator(kri, schema, aerospikeConfig, requiredColumns)
   }
+  
+  override def getPreferredLocations(split: Partition): Seq[String] =
+    Seq(split.asInstanceOf[AerospikePartition].host)
 
-  private def filterToQualifier(filter: Filter) = filter match {
+
+  private def filterToQualifier(filter: Filter):Qualifier = filter match {
     case EqualTo(attribute, value) =>
       if (isList(attribute)){
         new Qualifier(attribute, FilterOperation.LIST_CONTAINS, Value.get(value))  // TODO experimental
@@ -109,9 +112,15 @@ class KeyRecordRDD(
 
     case IsNotNull(attribute) =>
       new Qualifier(attribute, FilterOperation.NOTEQ, Value.getAsNull)
+      
+    case And(left, right) =>
+      new Qualifier(FilterOperation.AND, filterToQualifier(left), filterToQualifier(right))
 
+    case Or(left, right) =>
+      new Qualifier(FilterOperation.OR, filterToQualifier(left), filterToQualifier(right))
+          
     case _ =>
-      logger.debug(s"Not matching filter: ${filter.toString}")
+      logger.warn(s"Not matching filter: ${filter.toString}")
       null
   }
 

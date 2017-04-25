@@ -18,11 +18,12 @@ import com.aerospike.client.Bin
 import com.aerospike.client.Key
 import com.aerospike.client.Value
 import com.aerospike.client.policy.WritePolicy
+import com.aerospike.spark.SparkASITSpecBase
+import com.aerospike.spark.Globals
 
 
-class ListTest extends FlatSpec with BeforeAndAfter with SparkTest {
+class ListTest extends FlatSpec with BeforeAndAfter with SparkASITSpecBase{
 
-  val config = AerospikeConfig.newConfig(Globals.seedHost, 3000, 1000)
   var client: AerospikeClient = _
   val set = "lists"
   val listBin = "list-of-things"
@@ -34,7 +35,7 @@ class ListTest extends FlatSpec with BeforeAndAfter with SparkTest {
   }
 
   def createTestData(): Unit = {
-    client = AerospikeConnection.getClient(config)
+    client = AerospikeConnection.getClient(conf)
     Value.UseDoubleType = true
     val wp = new WritePolicy()
     wp.expiration = 600 // expire data in 10 minutes
@@ -55,12 +56,9 @@ class ListTest extends FlatSpec with BeforeAndAfter with SparkTest {
   behavior of "Aerospike List"
 
   it should "read list data" in {
-    val thingsDF = sqlContext.read.
-      format("com.aerospike.spark.sql").
-      option("aerospike.seedhost", Globals.seedHost).
-      option("aerospike.port", Globals.port.toString).
-      option("aerospike.namespace", Globals.namespace).
-      option("aerospike.set", set).
+    val thingsDF = sqlContext.read
+      .format("com.aerospike.spark.sql")
+      .option("aerospike.set", set).
       load
     thingsDF.printSchema()
     //thingsDF.show()
@@ -99,14 +97,11 @@ class ListTest extends FlatSpec with BeforeAndAfter with SparkTest {
 
     newDF.write.
       mode(SaveMode.Overwrite).
-      format("com.aerospike.spark.sql").
-      option("aerospike.seedhost", Globals.seedHost).
-      option("aerospike.port", Globals.port.toString).
-      option("aerospike.namespace", Globals.namespace).
-      option("aerospike.set", set).
-      option("aerospike.updateByKey", "key").
-      option("aerospike.ttlColumn", "ttl").
-      save()
+      format("com.aerospike.spark.sql")
+      .option("aerospike.set", set)
+      .option("aerospike.updateByKey", "key")
+      .option("aerospike.ttlColumn", "ttl")
+      .save()
 
     var poliKey = new Key(Globals.namespace, set, "Fraser_Malcolm")
     val fraser = client.get(null, poliKey)

@@ -3,6 +3,10 @@ package com.aerospike.spark.sql
 import com.aerospike.helper.query._
 import com.aerospike.client.AerospikeClient
 import com.aerospike.client.policy.ClientPolicy
+import com.typesafe.scalalogging.slf4j.LazyLogging
+import com.aerospike.client.query.IndexType
+import com.aerospike.client.policy.Policy
+import org.apache.spark.SparkConf
 
 /**
   * This class caches the AerospikeClient. The key used to retrive the client is based on the
@@ -11,7 +15,7 @@ import com.aerospike.client.policy.ClientPolicy
   * The purpose of this class is to eliminate excessive client creation with
   * the goal of having 1 client per executor.
   */
-object AerospikeConnection {
+object AerospikeConnection extends LazyLogging {
   val clientCache = new scala.collection.mutable.HashMap[String, AerospikeClient]()
   val queryEngineCache = new scala.collection.mutable.HashMap[AerospikeClient, QueryEngine]()
 
@@ -24,13 +28,17 @@ object AerospikeConnection {
       newEngine
     })
   }
-
+   def getClient(config: SparkConf) : AerospikeClient = synchronized{
+     getClient(AerospikeConfig(config))
+   }
+ 
   def getClient(config: AerospikeConfig) : AerospikeClient = synchronized{
     val host = config.get(AerospikeConfig.SeedHost)
     val port = config.get(AerospikeConfig.Port)
-    var client = clientCache.getOrElse(s"$host:$port", newClient(config))
-    if (!client.isConnected)
+    var client = clientCache.getOrElse(s"$host $port", newClient(config))
+    if (!client.isConnected){
       client = newClient(config)
+    }
     client
   }
 
@@ -47,6 +55,11 @@ object AerospikeConnection {
       case s: String => s.toInt
       case None => 1000
     }
+    val socketTimeOut:Int = config.get(AerospikeConfig.SocketTimeOut) match {
+      case i: Int => i
+      case s: String => s.toInt
+      case None => 1000
+    }
     val clientPolicy = new ClientPolicy
     clientPolicy.timeout = timeOut
     clientPolicy.failIfNotConnected = true
@@ -56,8 +69,9 @@ object AerospikeConnection {
     newClient.writePolicyDefault.timeout = timeOut
     newClient.readPolicyDefault.timeout = timeOut
     newClient.scanPolicyDefault.timeout = timeOut
+    newClient.scanPolicyDefault.socketTimeout = socketTimeOut
     newClient.queryPolicyDefault.timeout = timeOut
-
+ 
     for (node <- newClient.getNodes) {
       clientCache += (node.getHost.toString -> newClient)
     }

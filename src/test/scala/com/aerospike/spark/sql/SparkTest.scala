@@ -1,8 +1,10 @@
  package com.aerospike.spark.sql
 
  import org.apache.spark.SparkContext
- import org.apache.spark.sql.{SQLContext, SparkSession}
- import org.scalatest.{BeforeAndAfterAll, Suite}
+ import org.apache.spark.sql.SQLContext
+ import org.apache.spark.sql.SparkSession
+ import org.scalatest.BeforeAndAfterAll
+ import org.scalatest.Suite
 
  trait SparkTest extends BeforeAndAfterAll { self: Suite =>
 

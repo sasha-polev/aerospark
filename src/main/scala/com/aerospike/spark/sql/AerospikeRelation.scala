@@ -14,9 +14,9 @@ import com.aerospike.client.Value
 import com.aerospike.client.query.Statement
 import com.typesafe.scalalogging.slf4j.LazyLogging
 /**
-  * This class infers the schema used by the DataFrame
-  * and creates an instance of @see com.aerospike.spark.sql.KeyRecordRDD
-  */
+ * This class infers the schema used by the DataFrame
+ * and creates an instance of @see com.aerospike.spark.sql.KeyRecordRDD
+ */
 class AerospikeRelation(config: AerospikeConfig, userSchema: StructType)(@transient val sqlContext: SQLContext)
     extends BaseRelation with TableScan with PrunedFilteredScan with LazyLogging with Serializable {
 
@@ -31,8 +31,7 @@ class AerospikeRelation(config: AerospikeConfig, userSchema: StructType)(@transi
         StructField(config.digestColumn(), BinaryType, nullable = false),
         StructField(config.expiryColumn(), IntegerType, nullable = false),
         StructField(config.generationColumn(), IntegerType, nullable = false),
-        StructField(config.ttlColumn(), IntegerType, nullable = false)
-      )
+        StructField(config.ttlColumn(), IntegerType, nullable = false))
 
       val stmt = new Statement()
       stmt.setNamespace(config.get(AerospikeConfig.NameSpace).asInstanceOf[String])
@@ -42,10 +41,11 @@ class AerospikeRelation(config: AerospikeConfig, userSchema: StructType)(@transi
       val bins: Map[String, StructField] = try {
         val sample = recordSet.take(config.schemaScan())
         sample.flatMap { keyRecord =>
-          keyRecord.record.bins.map { case (binName, binVal) =>
-            val field = TypeConverter.valueToSchema(binName -> binVal)
-            logger.debug(s"Schema - Bin:$binName, Value:$binVal, Field:$field")
-            binName -> field
+          keyRecord.record.bins.map {
+            case (binName, binVal) =>
+              val field = TypeConverter.valueToSchema(binName -> binVal)
+              logger.debug(s"Schema - Bin:$binName, Value:$binVal, Field:$field")
+              binName -> field
           }
         }.toMap
       } catch {

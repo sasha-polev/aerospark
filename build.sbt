@@ -2,29 +2,38 @@ import sbtassembly.MergeStrategy._
 
 name := "aerospike-spark"
 
-version := "1.1.5"
+version := "1.2"
 
 organization := "com.aerospike"
 
-crossScalaVersions := Seq("2.10.6", "2.11.8")
+crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0")
 
 scalaVersion := "2.11.8"
 
-javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
+javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
 parallelExecution in test := false
 
-fork in test := true
-
 libraryDependencies ++= Seq(
-  "org.apache.spark"           %% "spark-core"            % "2.0.0" % Provided,
-  "org.apache.spark"           %% "spark-sql"             % "2.0.0" % Provided,
-  "com.aerospike"              %  "aerospike-helper-java" % "1.0.6",
-  "com.typesafe.scala-logging" %% "scala-logging-slf4j"   % "2.1.2",
-  "org.scalatest"              %% "scalatest"             % "2.2.1" % Test
+	"org.apache.spark"				%% "spark-core"				% "2.1.0" % "provided",
+	"org.apache.spark"				%% "spark-sql" 				% "2.1.0" % "provided",
+	"org.apache.spark"				%% "spark-mllib" 			% "2.1.0",
+	"org.apache.spark" 				%  "spark-streaming_2.11"	% "2.1.0",
+	"com.ning" 						% "async-http-client" 		% "1.9.10",
+	
+	"com.databricks"				%% "spark-csv"				% "1.5.0",
+	"com.aerospike"					%  "aerospike-helper-java"	% "1.2",
+	"com.aerospike"					%  "aerospike-client"	% 	"3.3.4",
+	"com.typesafe.scala-logging"	%% "scala-logging-slf4j"	% "2.1.2",
+	"org.scalatest"					%% "scalatest"				% "2.2.1" % Test,
+	"com.github.docker-java" 		% "docker-java" 			% "3.0.8" % Test,
+	"joda-time" 					% "joda-time" 				% "2.9.9" % Test,
+	"org.testcontainers" 			% "testcontainers" 			% "1.2.0" % "test" //testcontainers itself
+	
 )
 
 resolvers ++= Seq("Local Maven" at Path.userHome.asFile.toURI.toURL + ".m2/repository")
+resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository"
 
 cancelable in Global := true
 
@@ -37,6 +46,10 @@ assemblyMergeStrategy in assembly := {
     MergeStrategy.discard
   case PathList("META-INF", "maven","com.aerospike","aerospike-client", "pom.xml") =>
     MergeStrategy.discard
+  case PathList("META-INF", "maven","org.slf4j","slf4j-api", "pom.xml") =>
+    MergeStrategy.discard
+  case PathList(ps @ _*) if ps.last endsWith "pom.properties" =>
+    MergeStrategy.discard  
   case PathList("META-INF", xs @ _*) =>
     xs.map(_.toLowerCase) match {
       case ("manifest.mf" :: Nil) | ("index.list" :: Nil) | ("dependencies" :: Nil) =>

@@ -3,12 +3,13 @@ package com.aerospike.spark.sql
 import scala.collection.immutable.Map
 import com.aerospike.client.policy.CommitLevel
 import com.aerospike.client.policy.GenerationPolicy
+import org.apache.spark.SparkConf
 
 /**
   * this class is a container for the properties used during the
   * the read and save functions
   */
-class AerospikeConfig private(val properties: Map[String, Any]) extends Serializable {
+case class AerospikeConfig private(val properties: Map[String, Any]) extends Serializable {
 
   def get(key: String): Any =
     properties.getOrElse(key.toLowerCase(), notFound(key))
@@ -98,7 +99,8 @@ object AerospikeConfig {
     AerospikeConfig.DigestColumn -> "__digest",
     AerospikeConfig.ExpiryColumn -> "__expiry",
     AerospikeConfig.GenerationColumn -> "__generation",
-    AerospikeConfig.TTLColumn -> "__ttl")
+    AerospikeConfig.TTLColumn -> "__ttl",
+    AerospikeConfig.SaveMode -> "ignore")
 
   val SeedHost = "aerospike.seedhost"
   defineProperty(SeedHost, "127.0.0.1")
@@ -108,6 +110,9 @@ object AerospikeConfig {
 
   val TimeOut = "aerospike.timeout"
   defineProperty(TimeOut, 1000)
+  
+  val SocketTimeOut = "aerospike.sockettimeout"
+  defineProperty(SocketTimeOut, 0)
 
   val sendKey = "aerospike.sendKey"
   defineProperty(sendKey, false)
@@ -148,6 +153,9 @@ object AerospikeConfig {
   val TTLColumn = "aerospike.ttlColumn"
   defineProperty(TTLColumn, "__ttl")
 
+  val SaveMode = "aerospike.savemode"
+  defineProperty(SaveMode, "ignore")
+
   private def defineProperty(key: String, defaultValue: Any) : Unit = {
     val lowerKey = key.toLowerCase()
     if(defaultValues.contains(lowerKey))
@@ -156,12 +164,21 @@ object AerospikeConfig {
       defaultValues.put(lowerKey, defaultValue)
   }
 
-  def newConfig(seedHost:String, port: Any, timeOut:Any ): AerospikeConfig = {
-    newConfig(Map(AerospikeConfig.SeedHost -> seedHost,
-      AerospikeConfig.Port -> port,
-      AerospikeConfig.TimeOut -> timeOut))
+  def apply(seedHost:String, port: Int, timeOut:Any ): AerospikeConfig = {
+    newConfig(Map(
+        AerospikeConfig.SeedHost -> seedHost,
+        AerospikeConfig.Port -> port,
+        AerospikeConfig.TimeOut -> timeOut
+    ))
   }
 
+  def apply(conf:SparkConf): AerospikeConfig = {
+     newConfig(Map(
+        AerospikeConfig.SeedHost -> conf.get(AerospikeConfig.SeedHost, defaultValues.get(AerospikeConfig.SeedHost).toString),
+        AerospikeConfig.Port -> conf.getInt(AerospikeConfig.Port, defaultValues.get(AerospikeConfig.Port).get.asInstanceOf[Int]),
+        AerospikeConfig.TimeOut -> conf.getInt(AerospikeConfig.TimeOut, defaultValues.get(AerospikeConfig.TimeOut).get.asInstanceOf[Int])
+    ))
+  }
 
   def newConfig(props: Map[String, Any] = Map.empty): AerospikeConfig = {
     if (props.nonEmpty) {
@@ -177,5 +194,4 @@ object AerospikeConfig {
       new AerospikeConfig(defaultValues.toMap)
     }
   }
-
 }

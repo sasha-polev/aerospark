@@ -1,6 +1,7 @@
 package com.aerospike.spark.sql
 
 import org.scalatest.FlatSpec
+import com.aerospike.spark.Globals
 
 class ConfigTest extends FlatSpec {
   behavior of "Aerospike Configuration"

@@ -8,9 +8,11 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConversions.asScalaIterator
 import com.aerospike.client.policy.WritePolicy
 import com.aerospike.helper.query.QueryEngine
+import com.aerospike.spark.SparkASITSpecBase
+import com.aerospike.spark.Globals
 
 
-class QueyEngineTest extends FlatSpec with Matchers {
+class QueyEngineTest extends FlatSpec with Matchers with SparkASITSpecBase{
 
   val ages = Array(25,26,27,28,29)
   val colours = Array("blue","red","yellow","green","orange")
@@ -19,31 +21,15 @@ class QueyEngineTest extends FlatSpec with Matchers {
   val wp = new WritePolicy()
   wp.expiration = 600
 
-  var config: AerospikeConfig = _
-
   behavior of "QueryEngine from Scala"
 
-  it should "Get a client from cache" in {
-    config = AerospikeConfig.newConfig(Globals.seedHost, Globals.port, 20000)
-    val client = AerospikeConnection.getClient(config)
-    client shouldBe a [AerospikeClient]
-  }
-
-  it should "Get 3 clients and ensure they are the same" in {
-    val client1 = AerospikeConnection.getClient(config)
-    val client2 = AerospikeConnection.getClient(config)
-    assert(client1 == client2)
-    val client3 = AerospikeConnection.getClient(config)
-    assert(client1 == client3)
-  }
-
   it should "Get a query engine from cache" in {
-    val qe = AerospikeConnection.getQueryEngine(config)
+    val qe = AerospikeConnection.getQueryEngine(AerospikeConfig(conf))
     qe shouldBe a [QueryEngine]
   }
 
   it should "Insert data" in {
-    val cl = AerospikeConnection.getClient(config)
+    val cl = AerospikeConnection.getClient(conf)
 
     var i = 0
     for (x <- 1 to 100) {
@@ -59,7 +45,7 @@ class QueyEngineTest extends FlatSpec with Matchers {
   }
 
   it should "Select data" in {
-    val qe = AerospikeConnection.getQueryEngine(config)
+    val qe = AerospikeConnection.getQueryEngine(AerospikeConfig(conf))
     val stmt = new Statement()
     stmt.setNamespace(Globals.namespace)
     stmt.setSetName("selector")
@@ -79,7 +65,7 @@ class QueyEngineTest extends FlatSpec with Matchers {
       val thread = new Thread {
         override def run() {
 
-          val qe = AerospikeConnection.getQueryEngine(config)
+          val qe = AerospikeConnection.getQueryEngine(AerospikeConfig(conf))
           val stmt = new Statement()
           stmt.setNamespace(Globals.namespace)
           stmt.setSetName("selector")
@@ -88,9 +74,9 @@ class QueyEngineTest extends FlatSpec with Matchers {
           var count = 0
           try {
             while (it.hasNext) {
-//              val keyRecord = it.next()
-//              val key = keyRecord.key
-//              val record = keyRecord.record
+              val keyRecord = it.next()
+              val key = keyRecord.key
+              val record = keyRecord.record
               count = count + 1
             }
           } catch {
@@ -110,13 +96,13 @@ class QueyEngineTest extends FlatSpec with Matchers {
 
   }
   it should "Select data by node" in {
-    val nodes = AerospikeConnection.getClient(config).getNodes
+    val nodes = AerospikeConnection.getClient(conf).getNodes
 
     var threads = new ListBuffer[Thread]()
     for (i <- 0 until nodes.length) {
       val thread = new Thread {
         override def run() {
-          val qe = AerospikeConnection.getQueryEngine(config)
+          val qe = AerospikeConnection.getQueryEngine(AerospikeConfig(conf))
           val stmt = new Statement()
           stmt.setNamespace(Globals.namespace)
           stmt.setSetName("selector")
@@ -141,7 +127,7 @@ class QueyEngineTest extends FlatSpec with Matchers {
 
 
   it should "clean up because it's mother doesn't work here" in {
-    val cl = AerospikeConnection.getClient(config)
+    val cl = AerospikeConnection.getClient(conf)
 
     var i = 0
     for (x <- 1 to 100) {

@@ -10,19 +10,7 @@ Aerospike Spark Connector includes:
 
 The source code for this solution is available on GitHub at [https://github.com/aerospike/aerospark](https://github.com/aerospike/aerospark). SBT is the build tool and it will create a Uber (fat) jar as the final output of the build process. The jar will contain all the class files and dependencies.
 
-This Library requires Java JDK 7+ Scala 2.10, SBT 0.13, Maven and the `aerospike-helper-java` 
-
-Before you build the Aerospike spark connector you need to build the `aerospike-helper-java` JAR and install it in your local maven repository. The `aerospike-helper-java` JAR is used by the connector to perform efficent, multi-filter queries on Aerospike.
-
-Clone the [Aerospike Helper](https://github.com/aerospike/aerospike-helper) repository using this command:
-```bash
-$ git clone https://github.com/aerospike/aerospike-helper
-```
-Navigate to the subdirectory `java` and run the following command to build and install the helper class jar:
-```bash
-$ mvn clean install -DskipTests
-```
-When maven is complete the `aerospike-helper-java` JAR will be installed in your local maven repository
+This Library requires Java JDK 7+ Scala 2.11, SBT 0.13, and Docker running locally in order to perform the tests
 
 To build the Spark connector:
 Clone the [Aerospike Spark](https://github.com/aerospike/aerospark) repository using this command:
@@ -33,12 +21,12 @@ After cloning the repository, build the uber jar using:
 ```bash
 $ sbt assembly
 ```
-Note that during the build, a number of unit tests are run, these tests will assume an Aerospike cluster is running at "127.0.0.1" on port 3000. If you want to ignore the unit tests, use:
+Note that during the build, a number of unit tests are run, these tests will create a docker process automatically for an aerospike database. If you want to ignore the unit tests, use:
 ```bash
 $ sbt 'set test in assembly := {}' clean assembly
 ```
 
-On conclusion of the build, the uber JAR `aerospike-spark-assembly-<version>.jar` will be located in the subdirectory `target/scala-2.10`.
+On conclusion of the build, the uber JAR `aerospike-spark-assembly-<version>.jar` will be located in the subdirectory `target/scala-2.11`.
 
 ## Usage
 The assembled JAR can be used in any Spark application providing it's on the class path.
@@ -46,7 +34,7 @@ The assembled JAR can be used in any Spark application providing it's on the cla
 To use connector with the spark-shell, use the `--jars` command line option and include the path to the assembled JAR.
 Example:
 ```bash
-$ spark-shell --master local[*] --jars target/scala-2.10/aerospike-spark-assembly-1.1.4.jar
+$ spark-shell --master local[*] --jars target/scala-2.11/aerospike-spark-assembly-1.2.jar
 ```
 Import the `com.aerospike.spark.sql._` package
 ```scala
@@ -86,16 +74,32 @@ Load some data into Aerospike with:
 ```
 Try a test with the loaded data:
 ```scala
-	val thingsDF = sqlContext.read.
-			format("com.aerospike.spark.sql").
-			option("aerospike.seedhost", "127.0.0.1").
-			option("aerospike.port", "3000").
-			option("aerospike.namespace", namespace).
-			option("aerospike.set", "rdd-test").
-			load 
-	thingsDF.registerTempTable("things")
-	val filteredThings = sqlContext.sql("select * from things where one = 55")
-	val thing = filteredThings.first()
+    import org.apache.spark.sql.{ SQLContext, SparkSession, SaveMode}
+    import org.apache.spark.SparkConf
+    val conf = new SparkConf().
+      setMaster("local[2]").
+      setAppName("Aerospike Tests for Spark Dataset").
+      set("aerospike.seedhost", "localhost").
+      set("aerospike.port",  "3000").
+      set("aerospike.namespace", "test").
+      set("stream.orig.url", "localhost")
+      
+    val session = SparkSession.builder().
+      config(conf).
+      master("local[*]").
+      appName("Aerospike Tests").
+      config("spark.ui.enabled", "false").
+      getOrCreate()
+    
+    val sqlContext = session.sqlContext
+    val thingsDF = sqlContext.read.
+      format("com.aerospike.spark.sql").
+      option("aerospike.set", "rdd-test").
+      load
+      
+    thingsDF.registerTempTable("things")
+    val filteredThings = sqlContext.sql("select * from things where one = 55")
+    val thing = filteredThings.first()
 ```
 
 ### Loading and Saving DataFrames 
@@ -104,33 +108,23 @@ The Aerospike Spark connector provides functions to load data from Aerospike int
 #### Loading data
 
 ```scala
-	val thingsDF = sqlContext.read.
-		format("com.aerospike.spark.sql").
-		option("aerospike.seedhost", "127.0.0.1").
-		option("aerospike.port", "3000").
-		option("aerospike.namespace", "test").
-		option("aerospike.set", "rdd-test").
-		load 
+    val thingsDF = sqlContext.read.
+      format("com.aerospike.spark.sql").
+      option("aerospike.set", "rdd-test").
+      load 
 ```
 
 You can see that the read function is configured by a number of options, these are:
 - `format("com.aerospike.spark.sql")` specifies the function library to load the DataFrame.
-- `option("aerospike.seedhost", "127.0.0.1")` specifies a seed host in the Aerospike cluster.
-- `option("aerospike.port", "3000")` specifies the port to be used
-- `option("aerospike.namespace", "test")` specifies the Namespace name to be used e.g. "test"
 - `option("aerospike.set", "rdd-test")` specifies the Set to be used e.g. "rdd-test"
 Spark SQL can be used to efficently filter (where lastName = 'Smith') Bin values represented as columns. The filter is passed down to the Aerospike cluster and filtering is done in the server. Here is an example using filtering:
 ```scala
-	val thingsDF = sqlContext.read.
-		format("com.aerospike.spark.sql").
-		option("aerospike.seedhost", "127.0.0.1").
-		option("aerospike.port", "3000").
-		option("aerospike.namespace", namespace).
-		option("aerospike.set", "rdd-test").
-		load 
-	thingsDF.registerTempTable("things")
-	val filteredThings = sqlContext.sql("select * from things where one = 55")
-
+    val thingsDF = sqlContext.read.
+      format("com.aerospike.spark.sql").
+      option("aerospike.set", "rdd-test").
+      load 
+    thingsDF.registerTempTable("things")
+    val filteredThings = sqlContext.sql("select * from things where one = 55")
 ```
 
 Additional meta-data columns are automatically included when reading from Aerospike, the default names are:
@@ -142,14 +136,11 @@ Additional meta-data columns are automatically included when reading from Aerosp
  
 These meta-data column name defaults can be be changed by using additional options during read or write, for example:
 ```scala
-	val thingsDF = sqlContext.read.
-		format("com.aerospike.spark.sql").
-		option("aerospike.seedhost", "127.0.0.1").
-		option("aerospike.port", "3000").
-		option("aerospike.namespace", "test").
-		option("aerospike.set", "rdd-test").
-		option("aerospike.expiryColumn", "_my_expiry_column").
-		load 
+    val thingsDF = sqlContext.read.
+      format("com.aerospike.spark.sql").
+      option("aerospike.set", "rdd-test").
+      option("aerospike.expiryColumn", "_my_expiry_column").
+      load 
 ```
 
 #### Saving data
@@ -157,23 +148,17 @@ A DataFrame can be saved in Aerospike by specifying a column in the DataFrame as
 ##### Saving by Digest
 In this example, the value of the digest is specified by the "__digest" column in the DataFrame.
 ```scala
-	val thingsDF = sqlContext.read.
-		format("com.aerospike.spark.sql").
-		option("aerospike.seedhost", "127.0.0.1").
-		option("aerospike.port", "3000").
-		option("aerospike.namespace", namespace).
-		option("aerospike.set", "rdd-test").
-		load 
-		
+    val thingsDF = sqlContext.read.
+      format("com.aerospike.spark.sql").
+      option("aerospike.set", "rdd-test").
+      load 
+  		
     thingsDF.write.
-        mode(SaveMode.Overwrite).
-        format("com.aerospike.spark.sql").
-        option("aerospike.seedhost", "127.0.0.1").
-		option("aerospike.port", "3000").
-		option("aerospike.namespace", namespace).
-		option("aerospike.set", "rdd-test").
-		option("aerospike.updateByDigest", "__digest").
-        save()                
+      mode(SaveMode.Overwrite).
+      format("com.aerospike.spark.sql").
+      option("aerospike.set", "rdd-test").
+      option("aerospike.updateByDigest", "__digest").
+      save()                
 
 ```
 ##### Saving by Key
@@ -185,12 +170,7 @@ In this example, the value of the primary key is specified by the "key" column i
       import org.apache.spark.sql.types.StringType
       import org.apache.spark.sql.DataFrame
       import org.apache.spark.sql.Row
-      import org.apache.spark.sql.SaveMode
-
-
-      val namespace = "test"
-      val setName = "new-rdd-data"
-      
+       
       val schema = new StructType(Array(
           StructField("key",StringType,nullable = false),
           StructField("last",StringType,nullable = true),
@@ -215,11 +195,8 @@ In this example, the value of the primary key is specified by the "key" column i
       newDF.write.
         mode(SaveMode.Ignore).
         format("com.aerospike.spark.sql").
-        option("aerospike.seedhost", "127.0.0.1").
-						option("aerospike.port", "3000").
-						option("aerospike.namespace", namespace).
-						option("aerospike.set", setName).
-						option("aerospike.updateByKey", "key").
+        option("aerospike.set", "rdd-test").
+        option("aerospike.updateByKey", "key").
         save()       
 ```
 ##### Using TTL while saving 
@@ -253,7 +230,7 @@ Append|UPDATE_ONLY
 
 Option|Description|Default value
 ------|-----------|-------------
-aerospike.seedhost|A host name or address of the cluster| "127.0.0.1"
+aerospike.seedhost|A host name or address of the cluster| "localhost"
 aerospike.port|Port of Aerospike| 3000
 aerospike.timeout|Timeout for all operations in milliseconds|1000
 aerospike.sendKey|If true, store the value of the primary key|false
