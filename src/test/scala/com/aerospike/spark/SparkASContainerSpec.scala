@@ -14,4 +14,5 @@ object SparkASContainerSpec extends FlatSpec { self: Suite =>
   container.withExposedPorts(Globals.port)
   container.withClasspathResourceMapping("aerospike.conf", "/etc/aerospike/aerospike.conf", BindMode.READ_ONLY)
   container.start
+  Thread.sleep(5000)
 }
