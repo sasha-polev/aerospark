@@ -69,7 +69,6 @@ class QueyEngineTest extends FlatSpec with Matchers with SparkASITSpecBase{
           val stmt = new Statement()
           stmt.setNamespace(Globals.namespace)
           stmt.setSetName("selector")
-          println("\tStarted query " + i)
           val it = qe.select(stmt)
           var count = 0
           try {
@@ -86,7 +85,6 @@ class QueyEngineTest extends FlatSpec with Matchers with SparkASITSpecBase{
           finally {
             it.close()
           }
-          println(s"\tCompleted Query $i with $count records")
         }
       }
       thread.start()
@@ -106,7 +104,6 @@ class QueyEngineTest extends FlatSpec with Matchers with SparkASITSpecBase{
           val stmt = new Statement()
           stmt.setNamespace(Globals.namespace)
           stmt.setSetName("selector")
-          println("\tStarted partition " + i)
           val it = qe.select(stmt, false, nodes(i))
           var  count = 0
           for (row <- it) {
@@ -114,9 +111,7 @@ class QueyEngineTest extends FlatSpec with Matchers with SparkASITSpecBase{
             val rec = row.record
             count = count + 1
           }
-
           it.close()
-          println(s"\tCompleted partition $i with $count records")
         }
       }
       thread.start()

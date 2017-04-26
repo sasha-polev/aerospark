@@ -48,7 +48,6 @@ class KeyRecordRDD(
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
     val partition: AerospikePartition = split.asInstanceOf[AerospikePartition]
     val partHost = partition.host
-    logInfo(s"Starting partition compute() for Aerospike host: $partHost")
     val stmt = new Statement()
     stmt.setNamespace(aerospikeConfig.namespace())
     stmt.setSetName(aerospikeConfig.set())
@@ -73,7 +72,6 @@ class KeyRecordRDD(
     }
 
     context.addTaskCompletionListener(context => {
-      logInfo(s"KeyRecordIterator closed for Aerospike host $partHost")
       kri.close()
     })
     new RowIterator(kri, schema, aerospikeConfig, requiredColumns)

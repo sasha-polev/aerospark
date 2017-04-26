@@ -52,7 +52,6 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter with SparkASITS
       .format("com.aerospike.spark.sql")
       .option("aerospike.set", "rdd-test")
       .load
-    //thingsDF.printSchema()
     val result = thingsDF.take(50)
     result.foreach { row =>
       assert(row.getAs[String]("two").startsWith("two:"))
@@ -185,10 +184,6 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter with SparkASITS
        */
       val flightsDF = sqlContext.createDataFrame(flightsRDD)
 
-      //flightsDF.printSchema()
-      //flightsDF.show(50)
-
-      println("Save flights to Aerospike")
       flightsDF.write
         .mode(SaveMode.Overwrite)
         .format("com.aerospike.spark.sql")
@@ -196,25 +191,19 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter with SparkASITS
         .option("aerospike.updateByKey", "key")
         .option("aerospike.ttlColumn", "expiry")
         .save()
-
-      println("flights saved")
     }
     /*
      * find all the flights that are > 5 minutes late
      */
-    println("Find late flights from Aerospike")
     val readFlightsDF = sqlContext.read
       .format("com.aerospike.spark.sql")
       .option("aerospike.set", "spark-test")
       .load
 
-    //readFlightsDF.printSchema()
     readFlightsDF.registerTempTable("Flights")
-    //readFlightsDF.show(1)
 
     val lateFlightsDF = sqlContext.sql("select CARRIER, FL_NUM, DEP_DELAY_NEW, ARR_DELAY_NEW from Flights where ARR_DELAY_NEW > 5")
 
-    //lateFlightsDF.show(10)
     assert(12907 == lateFlightsDF.count())
   }
 }
