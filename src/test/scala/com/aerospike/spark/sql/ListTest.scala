@@ -60,8 +60,6 @@ class ListTest extends FlatSpec with BeforeAndAfter with SparkASITSpecBase{
       .format("com.aerospike.spark.sql")
       .option("aerospike.set", set).
       load
-    thingsDF.printSchema()
-    //thingsDF.show()
 
     val result = thingsDF.take(50)
     result.foreach { row =>

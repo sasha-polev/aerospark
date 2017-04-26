@@ -49,7 +49,6 @@ class MapTest extends FlatSpec with BeforeAndAfter with SparkASITSpecBase {
         val newInt = rand.nextInt(200) + 250L
         aMap.put(s"index-$j", newInt)
       }
-      //println(aMap)
       client.put(wp, newKey, new Bin(mapBin, aMap))
     }
   }
@@ -61,8 +60,6 @@ class MapTest extends FlatSpec with BeforeAndAfter with SparkASITSpecBase {
       .format("com.aerospike.spark.sql")
       .option("aerospike.set", set)
       .load
-    thingsDF.printSchema()
-    //thingsDF.show()
 
     val result = thingsDF.take(50)
     result.foreach { row =>

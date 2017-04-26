@@ -27,7 +27,6 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
     configMap.getOrElse(AerospikeConfig.SeedHost, sys.error(AerospikeConfig.SeedHost + " must be specified"))
     configMap.getOrElse(AerospikeConfig.Port, sys.error(AerospikeConfig.Port + " must be specified"))
     configMap.getOrElse(AerospikeConfig.NameSpace, sys.error(AerospikeConfig.NameSpace + " must be specified"))
-    logger.info("Creating Aerospike relation for " + AerospikeConfig.NameSpace +":"+ AerospikeConfig.SetName)
     new AerospikeRelation(AerospikeConfig.newConfig(configMap), null)(sqlContext)
   }
 
@@ -150,6 +149,5 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
           }
       }
     }
-    logger.debug(s"Completed writing partition of $counter rows")
   }
 }

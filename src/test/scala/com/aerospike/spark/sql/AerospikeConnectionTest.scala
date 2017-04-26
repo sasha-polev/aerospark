@@ -87,12 +87,8 @@ class AerospikeConnectionTest extends FlatSpec with Matchers with SparkASITSpecB
       stmt.setSetName("rdd-test")
       val kri = qe.select(stmt)
       var count = 0
-      print("\t")
-      while (kri.hasNext)
-        println(kri.next())
-        print(".")
+      print(".")
       qe.close()
-      println(s"\tIteration: $a")
     }
   }
 }
