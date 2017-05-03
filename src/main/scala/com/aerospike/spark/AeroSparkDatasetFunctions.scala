@@ -16,6 +16,9 @@
  */
 package com.aerospike.spark
 
+import java.lang.reflect.Method
+import java.util.HashMap
+
 import scala.collection.JavaConversions._
 
 import org.apache.spark.sql.Dataset
@@ -29,9 +32,7 @@ import com.aerospike.client.Record
 import com.aerospike.client.Value
 import com.aerospike.spark.sql.AerospikeConfig
 import com.aerospike.spark.sql.AerospikeConnection
-import java.util.HashMap
-import java.lang.reflect.Method
-
+import org.apache.spark.sql.DataFrameWriter
 
 /**
  * 
@@ -39,21 +40,17 @@ import java.lang.reflect.Method
  * 
  *  @author Michael Zhang
  */
-final class DatasetFunctions[T](dataset: Dataset[T]) extends Serializable {
+final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializable {
 
   val spark: SparkSession = dataset.sparkSession
-
-  /**
-   * Utilized Aerospike batch read for dataset join
-   */
-  def batchJoin(keyCol: String, set: String)(
-  implicit client: AerospikeClient = AerospikeConnection.getClient(spark.sparkContext.getConf)): Map[Any, Record] = {
-    val kVal = dataset.select(keyCol).collect
-    val ks = for (ak <- kVal) yield new Key(spark.sparkContext.getConf.get(AerospikeConfig.NameSpace), set, Value.get(ak.get(0)))
-
-    (kVal zip client.get(null, ks)).toMap[Any, Record]
-  }
   
+  /**
+   * Perform Dataset join with aerospike set
+   * @param keyCol:	key column of the input dataset
+   * @param set:		set name of aerospike
+   * 
+   * @return a Iterable[Row]
+   */
   def aeroJoin(keyCol: String, set: String): Iterable[Row] = {
     val rs = batchJoin(keyCol, set)
     for {
@@ -62,20 +59,24 @@ final class DatasetFunctions[T](dataset: Dataset[T]) extends Serializable {
     } yield Row (k.asInstanceOf[Row].get(0), mapAsScalaMap(v.bins))
   }
 
+  /**
+   * Perform Dataset intersect with aerospike set
+   * @param keyCol:	key column of the input dataset
+   * @param set:		set name of aerospike
+   * 
+   * @return a Dataset[T]
+   */
   def aeroIntersect(keyCol: String, set: String): Dataset[T] = {
     val rs = batchJoin(keyCol, set)
     val binMap = for((key, record) <- rs) yield (key.asInstanceOf[Row].get(0) -> record.bins)
     dataset.filter(data => dataMatch(keyCol, data, binMap))
   }
 
-  def saveToAerospike(set: String, keyBin: String): Unit = {
+  def save(set: String, keyBin: String): Unit = {
     val conf = spark.sparkContext.getConf
 
-    dataset.write
+    dataset.write.aerospikeFormat(set, keyBin)
       .mode(SaveMode.valueOf(conf.get(AerospikeConfig.SaveMode, "Ignore")))
-      .format("com.aerospike.spark.sql")
-      .option(AerospikeConfig.SetName, set)
-      .option(AerospikeConfig.UpdateByKey, keyBin)
       .save()
   }
 
@@ -95,6 +96,26 @@ final class DatasetFunctions[T](dataset: Dataset[T]) extends Serializable {
     var matched = true
     bins.foreach(kv => if (data.getV(kv._1.asInstanceOf[String]) != kv._2) matched = false)
     matched
+  }
+  
+    /**
+   * Utilized Aerospike batch read for dataset join
+   * @param keyCol:	key column of the input dataset
+   * @param set:		set name of aerospike
+   * 
+   * @return a map of key->record
+   */
+  private def batchJoin(keyCol: String, set: String)(
+  implicit client: AerospikeClient = AerospikeConnection.getClient(spark.sparkContext.getConf)): Map[Any, Record] = {
+    val kVal = dataset.select(keyCol).collect
+    val batchMax:Int = AerospikeConfig(spark.sparkContext.getConf).get(AerospikeConfig.BatchMax).toString.toInt
+    
+    val maps = for{ 
+        g <- kVal.grouped(batchMax)
+        val ks = for (ak <- g) yield new Key(spark.sparkContext.getConf.get(AerospikeConfig.NameSpace), set, Value.get(ak.get(0)))
+    } yield (g zip client.get(null, ks)).toMap[Any, Record]
+
+    maps reduce (_++_) 
   }
 
 }

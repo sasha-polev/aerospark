@@ -27,7 +27,8 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
     configMap.getOrElse(AerospikeConfig.SeedHost, sys.error(AerospikeConfig.SeedHost + " must be specified"))
     configMap.getOrElse(AerospikeConfig.Port, sys.error(AerospikeConfig.Port + " must be specified"))
     configMap.getOrElse(AerospikeConfig.NameSpace, sys.error(AerospikeConfig.NameSpace + " must be specified"))
-    new AerospikeRelation(AerospikeConfig.newConfig(configMap), null)(sqlContext)
+    val aconfig = AerospikeConfig.newConfig(configMap)
+    new AerospikeRelation(aconfig, null)(sqlContext)
   }
 
   override def createRelation(sqlContext: SQLContext, mode: SaveMode, parameters: Map[String, String], data: DataFrame): BaseRelation = {
@@ -46,6 +47,7 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
 
   private def savePartition(iterator: Iterator[Row],
     schema: StructType, mode: SaveMode, config: AerospikeConfig): Unit = {
+    
     val metaFields = Set(
       config.keyColumn(),
       config.digestColumn(),
@@ -63,14 +65,14 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
     if(hasUpdateByDigest && hasUpdateByKey){
       sys.error("Cannot use hasUpdateByKey and hasUpdateByDigest configuration together")
     }
-
+    val pool = java.util.concurrent.Executors.newFixedThreadPool(config.get(AerospikeConfig.MaxThreadCount).toString.toInt)
     logger.debug("fetch client to save partition")
     val client = AerospikeConnection.getClient(config)
 
     logger.debug("creating write policy")
 
     val policy = new WritePolicy(client.writePolicyDefault)
-
+    policy.retryOnTimeout = true
     mode match {
       case SaveMode.ErrorIfExists => policy.recordExistsAction = RecordExistsAction.CREATE_ONLY
       case SaveMode.Ignore => policy.recordExistsAction = RecordExistsAction.CREATE_ONLY
@@ -84,15 +86,13 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
       policy.generationPolicy = genPol.asInstanceOf[GenerationPolicy]
     }
 
-    var counter = 0
-
     while (iterator.hasNext) {
       val row = iterator.next()
 
       val key = if (hasUpdateByDigest) {
           val digestColumn = config.get(AerospikeConfig.UpdateByDigest).toString
           val digest = row(schema.fieldIndex(digestColumn)).asInstanceOf[Array[Byte]]
-          new Key(config.namespace(), digest, null, null)
+          new Key(config.namespace(), digest, config.set(), null)
         } else {
           val keyColumn = config.get(AerospikeConfig.UpdateByKey).toString
           val keyObject: Object = row(schema.fieldIndex(keyColumn)).asInstanceOf[Object]
@@ -110,8 +110,14 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
         }
 
         val bins = binsOnly.map(binName => TypeConverter.fieldToBin(schema, row, binName))
-        client.put(policy, key, bins:_*)
-        counter += 1
+        
+        pool.execute(
+          new Runnable {
+            def run {
+              client.put(policy, key, bins:_*)
+            }
+          })
+        
       } catch {
         case ex: AerospikeException =>
           val message = ex.getMessage
@@ -148,6 +154,8 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
               }
           }
       }
+      
     }
+    pool.shutdown()
   }
 }

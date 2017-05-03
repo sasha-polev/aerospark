@@ -86,11 +86,10 @@ case class AerospikeConfig private(val properties: Map[String, Any]) extends Ser
 
 object AerospikeConfig {
 
-  final val DEFAULT_READ_PURPOSE = "spark_read"
-  final val DEFAULT_WRITE_PURPOSE = "spark_write"
+  final val DEFAULT_SEED_HOST = "127.0.0.1"
 
   private val defaultValues = scala.collection.mutable.Map[String, Any](
-    AerospikeConfig.SeedHost -> "127.0.0.1",
+    AerospikeConfig.SeedHost -> DEFAULT_SEED_HOST,
     AerospikeConfig.Port -> 3000,
     AerospikeConfig.SchemaScan -> 100,
     AerospikeConfig.TimeOut -> 1000,
@@ -107,6 +106,9 @@ object AerospikeConfig {
 
   val Port = "aerospike.port"
   defineProperty(Port, 3000)
+  
+  val MaxThreadCount = "aerospike.maxthreadcount"
+  defineProperty(MaxThreadCount, 1)
 
   val TimeOut = "aerospike.timeout"
   defineProperty(TimeOut, 1000)
@@ -155,6 +157,9 @@ object AerospikeConfig {
 
   val SaveMode = "aerospike.savemode"
   defineProperty(SaveMode, "ignore")
+  
+  val BatchMax = "aerospike.batchMax"
+  defineProperty(BatchMax, 500)
 
   private def defineProperty(key: String, defaultValue: Any) : Unit = {
     val lowerKey = key.toLowerCase()
@@ -173,11 +178,7 @@ object AerospikeConfig {
   }
 
   def apply(conf:SparkConf): AerospikeConfig = {
-     newConfig(Map(
-        AerospikeConfig.SeedHost -> conf.get(AerospikeConfig.SeedHost, defaultValues.get(AerospikeConfig.SeedHost).toString),
-        AerospikeConfig.Port -> conf.getInt(AerospikeConfig.Port, defaultValues.get(AerospikeConfig.Port).get.asInstanceOf[Int]),
-        AerospikeConfig.TimeOut -> conf.getInt(AerospikeConfig.TimeOut, defaultValues.get(AerospikeConfig.TimeOut).get.asInstanceOf[Int])
-    ))
+    newConfig(conf.getAll.toMap)
   }
 
   def newConfig(props: Map[String, Any] = Map.empty): AerospikeConfig = {

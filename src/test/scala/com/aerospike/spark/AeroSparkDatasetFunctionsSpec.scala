@@ -14,7 +14,7 @@ import com.aerospike.spark.sql.SparkTest
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.GenericContainer
 
-class DatasetFunctionTest extends FlatSpec with Matchers with SparkASITSpecBase {
+class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASITSpecBase {
   val ages = Array(25, 26, 27, 28, 29)
   val colours = Array("blue", "red", "yellow", "green", "orange")
   val animals = Array("cat", "dog", "mouse", "snake", "lion")
@@ -57,34 +57,18 @@ class DatasetFunctionTest extends FlatSpec with Matchers with SparkASITSpecBase 
     }
 
   }
-
-  it should "Select by BatchJoin String" in {
+  
+  it should "Save by saveToAerospike" in {
     val spark = session
     import spark.implicits._
     val ds = Seq(
       Data(1, "selector-test:20"),
-      Data(2, "selector-test:31")).toDS()
+      Data(3, "selector-test:21"),
+      Data(2, "selector-test:31")
+    ).toDS()
 
-    val it = ds.batchJoin("b", "selector")
-    for (row <- it.values) {
-      val key = row.getValue("name")
-      assert(Seq("name:4", "name:0").contains(key))
-    }
-  }
-
-  it should "Select by BatchJoin Int" in {
-    val spark = session
-    import spark.implicits._
-    
-    val ds = Seq(
-      IntData(1, 20),
-      IntData(2, 32)).toDS()
-
-    val it = ds.batchJoin("b", "selectorInt")
-    for (row <- it.values) {
-      val key = row.getValue("name")
-      assert(Seq("name:4", "name:1").contains(key))
-    }
+    ds.save("inserts", "a")
+    assert(spark.scanSet("inserts").count == 3)
   }
 
   it should "Select by aeroJoin Int" in {     
@@ -145,7 +129,3 @@ class DatasetFunctionTest extends FlatSpec with Matchers with SparkASITSpecBase 
     }
   }
 }
-
-case class Data(a: Int, b: String)
-case class IntData(a: Int, b: Int)
-case class IntersectData(key: String, color: String, name: String, animal: String, age: Int)

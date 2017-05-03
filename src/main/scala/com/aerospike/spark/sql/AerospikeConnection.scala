@@ -1,12 +1,15 @@
 package com.aerospike.spark.sql
 
-import com.aerospike.helper.query._
-import com.aerospike.client.AerospikeClient
-import com.aerospike.client.policy.ClientPolicy
-import com.typesafe.scalalogging.slf4j.LazyLogging
-import com.aerospike.client.query.IndexType
-import com.aerospike.client.policy.Policy
+
+import java.net.InetSocketAddress;
 import org.apache.spark.SparkConf
+
+import com.aerospike.client.AerospikeClient
+import com.aerospike.client.Info
+import com.aerospike.client.policy.ClientPolicy
+import com.aerospike.helper.query._
+import com.typesafe.scalalogging.slf4j.LazyLogging
+import com.aerospike.client.cluster.Connection
 
 /**
   * This class caches the AerospikeClient. The key used to retrive the client is based on the
@@ -60,9 +63,11 @@ object AerospikeConnection extends LazyLogging {
       case s: String => s.toInt
       case None => 1000
     }
+
     val clientPolicy = new ClientPolicy
     clientPolicy.timeout = timeOut
     clientPolicy.failIfNotConnected = true
+    clientPolicy.maxConnsPerNode
     val newClient = new AerospikeClient(clientPolicy, host, port)
 
     // set all the timeouts
