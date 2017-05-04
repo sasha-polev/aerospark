@@ -1,5 +1,14 @@
 package com.aerospike.spark.sql
 
+
+
+
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
+
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SQLContext
@@ -8,14 +17,16 @@ import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.sources.CreatableRelationProvider
 import org.apache.spark.sql.sources.RelationProvider
 import org.apache.spark.sql.types.StructType
-import com.aerospike.client.policy.WritePolicy
-import com.aerospike.client.policy.RecordExistsAction
-import com.aerospike.client.Key
-import com.aerospike.client.Value
+
 import com.aerospike.client.AerospikeException
+import com.aerospike.client.Key
 import com.aerospike.client.ResultCode
+import com.aerospike.client.Value
 import com.aerospike.client.policy.GenerationPolicy
+import com.aerospike.client.policy.RecordExistsAction
+import com.aerospike.client.policy.WritePolicy
 import com.typesafe.scalalogging.slf4j.LazyLogging
+import java.util.concurrent.TimeUnit
 
 /**
   * This class provides implementations to the Spark load and save functions
@@ -85,10 +96,9 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
     if (genPol != null) {
       policy.generationPolicy = genPol.asInstanceOf[GenerationPolicy]
     }
-
+    val tasks = Array.empty[Future[_]]
     while (iterator.hasNext) {
       val row = iterator.next()
-
       val key = if (hasUpdateByDigest) {
           val digestColumn = config.get(AerospikeConfig.UpdateByDigest).toString
           val digest = row(schema.fieldIndex(digestColumn)).asInstanceOf[Array[Byte]]
@@ -111,13 +121,12 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
 
         val bins = binsOnly.map(binName => TypeConverter.fieldToBin(schema, row, binName))
         
-        pool.execute(
+        tasks:+pool.submit(
           new Runnable {
-            def run {
+            def run{
               client.put(policy, key, bins:_*)
             }
           })
-        
       } catch {
         case ex: AerospikeException =>
           val message = ex.getMessage
@@ -157,5 +166,12 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
       
     }
     pool.shutdown()
+    pool.awaitTermination(Long.MaxValue, TimeUnit.NANOSECONDS);
+    for(r <-tasks){
+      r.onComplete {
+        case Success(v) => None
+        case Failure(e) => throw new AerospikeException(e)
+      }
+    }
   }
 }
