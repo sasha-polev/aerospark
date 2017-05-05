@@ -58,7 +58,7 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
 
   }
   
-  it should "Save by saveToAerospike" in {
+  it should "Save to Aerospike" in {
     val spark = session
     import spark.implicits._
     val ds = Seq(
@@ -79,13 +79,39 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
       IntData(1, 20),
       IntData(2, 32)).toDS()
 
-    val it = ds.aeroJoin("b", "selectorInt")
-    it.foreach { row =>
-      val key1 = row.get(1).asInstanceOf[JMapWrapper[String, Any]]
-      val key2 = key1.get("name").get
+    val m = ds.aeroBatchRead("b", "selectorInt")
+    m.foreach { t =>
+      val key = t._2.get("name").get
       
-      assert(Seq("name:4", "name:1").contains(key2))
+      assert(Seq("name:4", "name:1").contains(key))
     }
+  }
+
+  it should "Select by aeroJoin Generic" in {     
+    val spark = session
+    import spark.implicits._
+
+    var ds = Seq(
+      IntData(1, 20),
+      IntData(2, 32)).toDS()
+
+    var m = ds.aeroJoin[ATest]("b", "selectorInt")
+    assert(m.count()==2)
+    
+    ds = Seq(
+      IntData(1, 20),
+      IntData(2, 132)).toDS()
+
+    m = ds.aeroJoin[ATest]("b", "selectorInt")
+    assert(m.count()==1)
+    
+    ds = Seq(
+      IntData(1, 120),
+      IntData(2, 132)).toDS()
+
+    m = ds.aeroJoin[ATest]("b", "selectorInt")
+    assert(m.count()==0)
+    
   }
 
   it should "Select by Intersect" in {
@@ -127,5 +153,32 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
       i += 1
       if (i == 5) i = 0
     }
+  }
+  
+  it should "instantiate class from a Map" in {
+      assert(fromMap[Test](Map("t" -> "test", "ot" -> "test2", "ott"->"test 3")) === new Test("test", Some("test 3")))
+      assert(fromMap[CaseTest](Map("t" -> "test", "ot" -> "test2", "ott"->"test 3")) === CaseTest("test", Some("test 3")))
+      assert(fromMap[CaseTest](Map("t" -> "test", "ott" -> "test2")) === CaseTest("test", Some("test2")))
+      assert(fromMap[CaseTest](Map("t" -> "test")) === CaseTest("test", None))
+  }
+}
+
+case class ATest(name: String, age: Long, __key:Any) extends GenericAeroJoin
+case class CaseTest(t: String, ott: Option[String])
+class Test(var t: String, var ott: Option[String]) extends Equals {
+  def canEqual(other: Any) = {
+    other.isInstanceOf[com.aerospike.spark.Test]
+  }
+
+  override def equals(other: Any) = {
+    other match {
+      case that: com.aerospike.spark.Test => that.canEqual(Test.this) && t == that.t && ott == that.ott
+      case _ => false
+    }
+  }
+
+  override def hashCode() = {
+    val prime = 41
+    prime * (prime + t.hashCode) + ott.hashCode
   }
 }
