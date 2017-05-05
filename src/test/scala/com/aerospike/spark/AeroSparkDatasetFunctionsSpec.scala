@@ -34,7 +34,7 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
 
     var i = 0
     for (x <- 1 to 100) {
-      val name = new Bin("name", "name:" + i)
+      val name = new Bin("name", "name_" + i)
       val age = new Bin("age", ages(i))
       val colour = new Bin("color", colours(i))
       val animal = new Bin("animal", animals(i))
@@ -46,7 +46,7 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
 
     i = 0
     for (x <- 1 to 100) {
-      val name = new Bin("name", "name:" + i)
+      val name = new Bin("name", "name_" + i)
       val age = new Bin("age", ages(i))
       val colour = new Bin("color", colours(i))
       val animal = new Bin("animal", animals(i))
@@ -83,7 +83,7 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
     m.foreach { t =>
       val key = t._2.get("name").get
       
-      assert(Seq("name:4", "name:1").contains(key))
+      assert(Seq("name_4", "name_1").contains(key))
     }
   }
 
@@ -119,11 +119,11 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
     import spark.implicits._
     
     val ds = Seq(
-      IntersectData("selector-test:20", "orange", "name:4", "lion", 29),
-      IntersectData("selector-test:31", "orange", "name:0", "lion", 33)).toDS()
+      IntersectData("selector-test:20", "orange", "name_4", "lion", 29),
+      IntersectData("selector-test:31", "orange", "name_0", "lion", 33)).toDS()
 
     ds.aeroIntersect("key", "selector").collect.foreach { data =>
-      assert(data.name.equals("name:4"))
+      assert(data.name.equals("name_4"))
     }
   }
 
@@ -132,7 +132,7 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
 
     var i = 0
     for (x <- 1 to 100) {
-      val name = new Bin("name", "name:" + i)
+      val name = new Bin("name", "name_" + i)
       val age = new Bin("age", ages(i))
       val colour = new Bin("color", colours(i))
       val animal = new Bin("animal", animals(i))
@@ -144,7 +144,7 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
 
     i = 0
     for (x <- 1 to 100) {
-      val name = new Bin("name", "name:" + i)
+      val name = new Bin("name", "name_" + i)
       val age = new Bin("age", ages(i))
       val colour = new Bin("color", colours(i))
       val animal = new Bin("animal", animals(i))
@@ -163,7 +163,8 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
   }
 }
 
-case class ATest(name: String, age: Long, __key:Any) extends GenericAeroJoin
+case class ATest(name: String, age: Long, color:String, __key: Any) extends GenericAeroJoin
+ 
 case class CaseTest(t: String, ott: Option[String])
 class Test(var t: String, var ott: Option[String]) extends Equals {
   def canEqual(other: Any) = {

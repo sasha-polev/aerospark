@@ -21,7 +21,9 @@ import java.util.HashMap
 
 import scala.collection.JavaConversions.mapAsScalaMap
 import scala.reflect.ClassTag
+import scala.reflect.runtime.universe.MethodSymbol
 import scala.reflect.runtime.universe.TypeTag
+import scala.reflect.runtime.universe.typeOf
 
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Row
@@ -34,7 +36,6 @@ import com.aerospike.client.Record
 import com.aerospike.client.Value
 import com.aerospike.spark.sql.AerospikeConfig
 import com.aerospike.spark.sql.AerospikeConnection
-
 
 /**
  * 
@@ -53,10 +54,10 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
    * 
    * @return a Map[Any, Map[String, Object]]: a map with key to the map of bin name to value
    */
-  def aeroBatchRead(keyCol: String, set: String): Map[Any, Map[String, Object]] = {
+  def aeroBatchRead(keyCol: String, set: String, bins: Array[String] = Array.empty[String]): Map[Any, Map[String, Object]] = {
     val rs = batchJoin(keyCol, set)
     for {
-        (k,v) <- batchJoin(keyCol, set) 
+        (k,v) <- batchJoin(keyCol, set, bins) 
         if(Option(v).isDefined)
     } yield (k.asInstanceOf[Row].get(0), v.bins.toMap)
   }
@@ -70,12 +71,11 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
    * @return a Iterable[Row]
    */
   def aeroJoin[A: TypeTag: ClassTag](keyCol: String, set: String)(implicit ev: A <:< GenericAeroJoin): Dataset[A] = {
-   implicit val myObjEncoder = org.apache.spark.sql.Encoders.kryo[A]
+    implicit val myObjEncoder = org.apache.spark.sql.Encoders.kryo[A]
     val rs = for {
-        (k,v) <- aeroBatchRead(keyCol, set)
+        (k,v) <- aeroBatchRead(keyCol, set, classAccessors[A].map(m => m.name.toString).toArray)
         val v2 = fromMap[A](v.+ ("__key"-> k))
     } yield (v2.asInstanceOf[A])
-  
     spark.createDataset(rs.toSeq)
   }
    
@@ -125,19 +125,23 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
    * 
    * @return a map of key->record
    */
-  private def batchJoin(keyCol: String, set: String)(
+  private def batchJoin(keyCol: String, set: String, binNames:Array[String]=  Array[String]())(
   implicit client: AerospikeClient = AerospikeConnection.getClient(spark.sparkContext.getConf)): Map[Any, Record] = {
     val kVal = dataset.select(keyCol).collect
     val batchMax:Int = AerospikeConfig(spark.sparkContext.getConf).get(AerospikeConfig.BatchMax).toString.toInt
-    
     val maps = for{ 
         g <- kVal.grouped(batchMax)
         val ks = for (ak <- g) yield new Key(spark.sparkContext.getConf.get(AerospikeConfig.NameSpace), set, Value.get(ak.get(0)))
-    } yield (g zip client.get(null, ks)).toMap[Any, Record]
+    } yield (g zip  (if (binNames.isEmpty) client.get(null, ks) else  client.get(null, ks, binNames:_*))).toMap[Any, Record]  
 
     maps reduce (_++_) 
   }
   
+  
+  private def classAccessors[T: TypeTag]: List[MethodSymbol] = typeOf[T].members.collect {
+    case m: MethodSymbol if m.isCaseAccessor => m
+  }.toList
+
 }
 
 trait GenericAeroJoin {def __key: Any}
