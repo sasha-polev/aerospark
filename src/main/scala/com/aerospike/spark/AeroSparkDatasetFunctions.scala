@@ -85,6 +85,10 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
       .mode(SaveMode.valueOf(conf.get(AerospikeConfig.SaveMode, "Ignore")))
       .save()
   }
+  
+  def save(keyBin: String)(implicit m: reflect.Manifest[T]): Unit = {
+    save(m.runtimeClass.getSimpleName, keyBin)
+  }
 
   implicit def reflector(ref: T) = new {
     def getV(name: String): Any = {
