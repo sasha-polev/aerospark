@@ -13,6 +13,7 @@ import com.aerospike.spark.sql.AerospikeConnection
 import com.aerospike.spark.sql.SparkTest
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.GenericContainer
+import org.apache.spark.sql.functions.col
 
 class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASITSpecBase {
   val ages = Array(25, 26, 27, 28, 29)
@@ -67,7 +68,7 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
       Data(2, "selector-test:31")
     ).toDS()
 
-    ds.save("inserts", "a")
+    ds.write.aerospike.setName("inserts").key("a").save
     assert(spark.scanSet("inserts").count == 3)
   }
 
@@ -79,39 +80,11 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
       IntData(1, 20),
       IntData(2, 32)).toDS()
 
-    val m = ds.aeroBatchRead("b", "selectorInt")
+    val m = ds.aeroJoin("b", "selectorInt")
     m.foreach { t =>
       val key = t._2.get("name").get
-      
       assert(Seq("name_4", "name_1").contains(key))
     }
-  }
-
-  it should "Select by aeroJoin Generic" in {     
-    val spark = session
-    import spark.implicits._
-
-    var ds = Seq(
-      IntData(1, 20),
-      IntData(2, 32)).toDS()
-
-    var m = ds.aeroJoin[ATest]("b", "selectorInt")
-    assert(m.count()==2)
-    
-    ds = Seq(
-      IntData(1, 20),
-      IntData(2, 132)).toDS()
-
-    m = ds.aeroJoin[ATest]("b", "selectorInt")
-    assert(m.count()==1)
-    
-    ds = Seq(
-      IntData(1, 120),
-      IntData(2, 132)).toDS()
-
-    m = ds.aeroJoin[ATest]("b", "selectorInt")
-    assert(m.count()==0)
-    
   }
 
   it should "Select by Intersect" in {

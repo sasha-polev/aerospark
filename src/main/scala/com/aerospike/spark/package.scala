@@ -29,30 +29,37 @@ package object spark {
   
   implicit class DataFrameReaderWrapper(val dfReader: DataFrameReader) extends AnyVal {
     /** Sets the format used to access Aerospike through Client */
-    def aerospikeFormat: DataFrameReader = {
+    def aerospike: DataFrameReader = {
       dfReader.format("com.aerospike.spark.sql")
     }
 
     /** Sets the format used to access Cassandra through Connector and configure a path to Cassandra table. */
-    def aerospikeFormat(set: String): DataFrameReader = {
-      aerospikeFormat.option("aerospike.set",set)
+    def aerospike(set: String): DataFrameReader = {
+      aerospike.option("aerospike.set",set)
     }
   }
   
   implicit class DataFrameWriterWrapper[T](val dfWriter: DataFrameWriter[T]) extends AnyVal {
     /** Sets the format used to access Aerospike through client */
-    def aerospikeFormat: DataFrameWriter[T] = {
+    def aerospike: DataFrameWriter[T] = {
       dfWriter.format("com.aerospike.spark.sql")
     }
 
     /** Sets the format used to access Aerospike set */
-    def aerospikeFormat(
+    def aerospike(
        set: String,
        key: String): DataFrameWriter[T] = {
-
-      aerospikeFormat
+      aerospike
         .option(AerospikeConfig.SetName, set)
         .option(AerospikeConfig.UpdateByKey, key)
+    }
+    
+    def setName(set:String): DataFrameWriter[T] = {
+      aerospike.option(AerospikeConfig.SetName, set)
+    }
+    
+   def key(key:String): DataFrameWriter[T] = {
+      aerospike.option(AerospikeConfig.UpdateByKey, key)
     }
   }
   
