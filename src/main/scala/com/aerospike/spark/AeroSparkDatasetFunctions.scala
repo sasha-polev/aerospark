@@ -59,7 +59,6 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
    * @return a Map[Any, Map[String, Object]]: a map with key to the map of bin name to value
    */
   def aeroJoin(keyCol: String, set: String, bins: Array[String] = Array.empty[String]): Map[Any, Map[String, Object]] = {
-    val rs = batchJoin(keyCol, set)
     for {
         (k,v) <- batchJoin(keyCol, set, bins) 
         if(Option(v).isDefined)
@@ -123,11 +122,4 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
 
     maps reduce (_++_) 
   }
-  
-  private def classAccessors[T: TypeTag]: List[MethodSymbol] = typeOf[T].members.collect {
-    case m: MethodSymbol if m.isCaseAccessor => m
-  }.toList
-}
-
-trait GenericAeroJoin {def __key: Any}
-
+ }

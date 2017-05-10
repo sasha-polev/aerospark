@@ -1,7 +1,5 @@
 package com.aerospike.spark
 
-import scala.collection.convert.Wrappers.JMapWrapper
-
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
@@ -10,10 +8,6 @@ import com.aerospike.client.Bin
 import com.aerospike.client.Key
 import com.aerospike.client.policy.WritePolicy
 import com.aerospike.spark.sql.AerospikeConnection
-import com.aerospike.spark.sql.SparkTest
-import org.testcontainers.containers.BindMode
-import org.testcontainers.containers.GenericContainer
-import org.apache.spark.sql.functions.col
 
 class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASITSpecBase {
   val ages = Array(25, 26, 27, 28, 29)
@@ -135,8 +129,6 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
       assert(fromMap[CaseTest](Map("t" -> "test")) === CaseTest("test", None))
   }
 }
-
-case class ATest(name: String, age: Long, color:String, __key: Any) extends GenericAeroJoin
  
 case class CaseTest(t: String, ott: Option[String])
 class Test(var t: String, var ott: Option[String]) extends Equals {
