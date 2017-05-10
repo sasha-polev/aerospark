@@ -2,7 +2,7 @@ import sbtassembly.MergeStrategy._
 
 name := "aerospike-spark"
 
-version := "1.2"
+version := "1.3"
 
 organization := "com.aerospike"
 
