@@ -4,6 +4,7 @@ import scala.collection.immutable.Map
 import com.aerospike.client.policy.CommitLevel
 import com.aerospike.client.policy.GenerationPolicy
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.RuntimeConfig
 
 /**
   * this class is a container for the properties used during the
@@ -178,6 +179,10 @@ object AerospikeConfig {
   }
 
   def apply(conf:SparkConf): AerospikeConfig = {
+    newConfig(conf.getAll.toMap)
+  }
+  
+  def apply(conf:RuntimeConfig): AerospikeConfig = {
     newConfig(conf.getAll.toMap)
   }
 

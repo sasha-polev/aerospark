@@ -10,6 +10,7 @@ import com.aerospike.client.policy.ClientPolicy
 import com.aerospike.helper.query._
 import com.typesafe.scalalogging.slf4j.LazyLogging
 import com.aerospike.client.cluster.Connection
+import org.apache.spark.sql.RuntimeConfig
 
 /**
   * This class caches the AerospikeClient. The key used to retrive the client is based on the
@@ -31,9 +32,14 @@ object AerospikeConnection extends LazyLogging {
       newEngine
     })
   }
-   def getClient(config: SparkConf) : AerospikeClient = synchronized{
+   
+  def getClient(config: SparkConf) : AerospikeClient = synchronized{
      getClient(AerospikeConfig(config))
-   }
+  }
+  
+  def getClient(config: RuntimeConfig) : AerospikeClient = synchronized{
+     getClient(AerospikeConfig(config))
+  }
  
   def getClient(config: AerospikeConfig) : AerospikeClient = synchronized{
     val host = config.get(AerospikeConfig.SeedHost)

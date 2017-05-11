@@ -116,12 +116,12 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
    * @return a map of key->record
    */
   private def batchJoin(keyCol: String, set: String, binNames:Array[String]=  Array[String]())(
-  implicit client: AerospikeClient = AerospikeConnection.getClient(spark.sparkContext.getConf)): Map[Any, Record] = {
+  implicit client: AerospikeClient = AerospikeConnection.getClient(spark.conf)): Map[Any, Record] = {
     val kVal = dataset.select(keyCol).collect
-    val batchMax:Int = AerospikeConfig(spark.sparkContext.getConf).get(AerospikeConfig.BatchMax).toString.toInt
+    val batchMax:Int = AerospikeConfig(spark.conf).get(AerospikeConfig.BatchMax).toString.toInt
     val maps = for{ 
         g <- kVal.grouped(batchMax)
-        val ks = for (ak <- g) yield new Key(spark.sparkContext.getConf.get(AerospikeConfig.NameSpace), set, Value.get(ak.get(0)))
+        val ks = for (ak <- g) yield new Key(spark.conf.get(AerospikeConfig.NameSpace), set, Value.get(ak.get(0)))
     } yield (g zip  (if (binNames.isEmpty) client.get(null, ks) else  client.get(null, ks, binNames:_*))).toMap[Any, Record]  
 
     maps reduce (_++_) 
