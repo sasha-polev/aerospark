@@ -16,10 +16,10 @@ parallelExecution in test := false
 
 libraryDependencies ++= Seq(
 	"org.apache.spark"				%% "spark-core"				% "2.1.0" % "provided",
-	"org.apache.spark"				%% "spark-sql" 				% "2.1.0" % "provided",
-	"org.apache.spark"				%% "spark-mllib" 			% "2.1.0",
-	"org.apache.spark" 				%  "spark-streaming_2.11"	% "2.1.0",
-	"com.ning" 						% "async-http-client" 		% "1.9.10",
+	"org.apache.spark"				%% "spark-sql"				% "2.1.0" % "provided",
+	"org.apache.spark"				%% "spark-mllib"			% "2.1.0",
+	"org.apache.spark"				%  "spark-streaming_2.11"	% "2.1.0",
+	"com.ning"						% "async-http-client"		% "1.9.10",
 	
 	"com.databricks"				%% "spark-csv"				% "1.5.0",
 	"com.aerospike"					%  "aerospike-helper-java"	% "1.2",
@@ -27,8 +27,8 @@ libraryDependencies ++= Seq(
 	"com.typesafe.scala-logging"	%% "scala-logging-slf4j"	% "2.1.2",
 	"org.scalatest"					%% "scalatest"				% "2.2.1" % Test,
 	"com.github.docker-java" 		% "docker-java" 			% "3.0.8" % Test,
-	"joda-time" 					% "joda-time" 				% "2.9.9" % Test,
-	"org.testcontainers" 			% "testcontainers" 			% "1.2.0" % "test" //testcontainers itself
+	"joda-time"						% "joda-time"				% "2.9.9" % Test,
+	"org.testcontainers"			% "testcontainers" 			% "1.2.0" % "test" //testcontainers itself
 	
 )
 

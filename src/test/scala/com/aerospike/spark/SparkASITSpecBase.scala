@@ -46,3 +46,7 @@ trait SparkASITSpecBase extends FlatSpec with BeforeAndAfterAll { self: Suite =>
     super.afterAll()
   }
 }
+
+case class Data(a: Int, b: String)
+case class IntData(a: Int, b: Int)
+case class IntersectData(key: String, color: String, name: String, animal: String, age: Int)

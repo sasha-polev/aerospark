@@ -1,5 +1,10 @@
 package com.aerospike.spark.sql
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
+
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SQLContext
@@ -8,14 +13,16 @@ import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.sources.CreatableRelationProvider
 import org.apache.spark.sql.sources.RelationProvider
 import org.apache.spark.sql.types.StructType
-import com.aerospike.client.policy.WritePolicy
-import com.aerospike.client.policy.RecordExistsAction
-import com.aerospike.client.Key
-import com.aerospike.client.Value
+
 import com.aerospike.client.AerospikeException
+import com.aerospike.client.Key
 import com.aerospike.client.ResultCode
+import com.aerospike.client.Value
 import com.aerospike.client.policy.GenerationPolicy
+import com.aerospike.client.policy.RecordExistsAction
+import com.aerospike.client.policy.WritePolicy
 import com.typesafe.scalalogging.slf4j.LazyLogging
+import java.util.concurrent.TimeUnit
 
 /**
   * This class provides implementations to the Spark load and save functions
@@ -46,6 +53,7 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
 
   private def savePartition(iterator: Iterator[Row],
     schema: StructType, mode: SaveMode, config: AerospikeConfig): Unit = {
+    
     val metaFields = Set(
       config.keyColumn(),
       config.digestColumn(),
@@ -63,14 +71,14 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
     if(hasUpdateByDigest && hasUpdateByKey){
       sys.error("Cannot use hasUpdateByKey and hasUpdateByDigest configuration together")
     }
-
+    val pool = java.util.concurrent.Executors.newFixedThreadPool(config.get(AerospikeConfig.MaxThreadCount).toString.toInt)
     logger.debug("fetch client to save partition")
     val client = AerospikeConnection.getClient(config)
 
     logger.debug("creating write policy")
 
     val policy = new WritePolicy(client.writePolicyDefault)
-
+    policy.retryOnTimeout = true
     mode match {
       case SaveMode.ErrorIfExists => policy.recordExistsAction = RecordExistsAction.CREATE_ONLY
       case SaveMode.Ignore => policy.recordExistsAction = RecordExistsAction.CREATE_ONLY
@@ -83,16 +91,13 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
     if (genPol != null) {
       policy.generationPolicy = genPol.asInstanceOf[GenerationPolicy]
     }
-
-    var counter = 0
-
+    val tasks = Array.empty[Future[_]]
     while (iterator.hasNext) {
       val row = iterator.next()
-
       val key = if (hasUpdateByDigest) {
           val digestColumn = config.get(AerospikeConfig.UpdateByDigest).toString
           val digest = row(schema.fieldIndex(digestColumn)).asInstanceOf[Array[Byte]]
-          new Key(config.namespace(), digest, null, null)
+          new Key(config.namespace(), digest, config.set(), null)
         } else {
           val keyColumn = config.get(AerospikeConfig.UpdateByKey).toString
           val keyObject: Object = row(schema.fieldIndex(keyColumn)).asInstanceOf[Object]
@@ -110,8 +115,13 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
         }
 
         val bins = binsOnly.map(binName => TypeConverter.fieldToBin(schema, row, binName))
-        client.put(policy, key, bins:_*)
-        counter += 1
+        
+        tasks:+pool.submit(
+          new Runnable {
+            def run{
+              client.put(policy, key, bins:_*)
+            }
+          })
       } catch {
         case ex: AerospikeException =>
           val message = ex.getMessage
@@ -147,6 +157,15 @@ class DefaultSource extends RelationProvider with Serializable with LazyLogging 
                   throw ex
               }
           }
+      }
+      
+    }
+    pool.shutdown()
+    pool.awaitTermination(Long.MaxValue, TimeUnit.NANOSECONDS);
+    for(r <-tasks){
+      r.onComplete {
+        case Success(v) => None
+        case Failure(e) => throw new AerospikeException(e)
       }
     }
   }
