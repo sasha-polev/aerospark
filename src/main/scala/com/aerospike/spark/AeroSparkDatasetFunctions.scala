@@ -73,8 +73,10 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
    * @return a Dataset[T]
    */
   def aeroIntersect(keyCol: String, set: String): Dataset[T] = {
-    val rs = batchJoin(keyCol, set)
-    val binMap = for((key, record) <- rs) yield (key.asInstanceOf[Row].get(0) -> record.bins)
+    val binMap = for {
+        (k,v) <- batchJoin(keyCol, set) 
+        if(Option(v).isDefined)
+    } yield (k.asInstanceOf[Row].get(0) -> v.bins)
     dataset.filter(data => dataMatch(keyCol, data, binMap))
   }
 
