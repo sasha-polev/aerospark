@@ -66,10 +66,10 @@ package object spark {
   /**
    * reflection Map to Object of case class
    */
-  def fromMap[T: TypeTag: ClassTag](m: Map[String,_]) = {
+  def fromMap[T: TypeTag: ClassTag](m: Map[String, _]) = {
     val rm = runtimeMirror(classTag[T].runtimeClass.getClassLoader)
-    val classTest = typeOf[T].typeSymbol.asClass
-    val classMirror = rm.reflectClass(classTest)
+    val classT = typeOf[T].typeSymbol.asClass
+    var classMirror = rm.reflectClass(classT)
     val constructor = typeOf[T].decl(termNames.CONSTRUCTOR).asMethod
     val constructorMirror = classMirror.reflectConstructor(constructor)
 

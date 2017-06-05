@@ -74,11 +74,40 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
       IntData(1, 20),
       IntData(2, 32)).toDS()
 
-    val m = ds.aeroJoin("b", "selectorInt")
+    val m = ds.aeroJoinMap("b", "selectorInt")
     m.foreach { t =>
       val key = t._2.get("name").get
       assert(Seq("name_4", "name_1").contains(key))
     }
+  }
+  
+    it should "Select by aeroJoin Generic" in {     
+    val spark = session
+    import spark.implicits._
+
+    var ds = Seq(
+      IntData(1, 20),
+      IntData(2, 32)).toDS()
+
+    var m = ds.aeroJoin[GTest]("b", "selectorInt")
+    assert(m.count()==2)
+    
+    ds = Seq(
+      IntData(1, 20),
+      IntData(2, 132)).toDS()
+
+    m = ds.aeroJoin[GTest]("b", "selectorInt")
+    println("Generic aeroJoin result: ")
+    m.foreach(f => println( f))
+    assert(m.count()==1)
+    
+    ds = Seq(
+      IntData(1, 120),
+      IntData(2, 132)).toDS()
+
+    m = ds.aeroJoin[GTest]("b", "selectorInt")
+    assert(m.count()==0)
+    
   }
 
   it should "Select by Intersect" in {
@@ -129,6 +158,7 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
       assert(fromMap[CaseTest](Map("t" -> "test")) === CaseTest("test", None))
   }
 }
+case class GTest(name: String, age: Long, color:String, __key: Any) extends AeroKV
  
 case class CaseTest(t: String, ott: Option[String])
 class Test(var t: String, var ott: Option[String]) extends Equals {
