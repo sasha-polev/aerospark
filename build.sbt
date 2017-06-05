@@ -2,7 +2,7 @@ import sbtassembly.MergeStrategy._
 
 name := "aerospike-spark"
 
-version := "1.3"
+version := "1.3.1"
 
 organization := "com.aerospike"
 
@@ -20,6 +20,7 @@ libraryDependencies ++= Seq(
 	"org.apache.spark"				%% "spark-mllib"			% "2.1.0",
 	"org.apache.spark"				%  "spark-streaming_2.11"	% "2.1.0",
 	"com.ning"						% "async-http-client"		% "1.9.10",
+	"com.twitter"					% "util-core_2.11" 			% "6.42.0",
 	
 	"com.databricks"				%% "spark-csv"				% "1.5.0",
 	"com.aerospike"					%  "aerospike-helper-java"	% "1.2",
