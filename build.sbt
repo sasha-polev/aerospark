@@ -1,10 +1,6 @@
-import sbtassembly.MergeStrategy._
-
-name := "aerospike-spark"
-
-version := "1.3.1"
-
 organization := "com.aerospike"
+name         := "aerospike-spark"
+version      := "1.3.1"
 
 crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0")
 
@@ -14,23 +10,21 @@ javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
 parallelExecution in test := false
 
+val sparkVer = "2.1.1"
 libraryDependencies ++= Seq(
-	"org.apache.spark"				%% "spark-core"				% "2.1.0" % "provided",
-	"org.apache.spark"				%% "spark-sql"				% "2.1.0" % "provided",
-	"org.apache.spark"				%% "spark-mllib"			% "2.1.0",
-	"org.apache.spark"				%  "spark-streaming_2.11"	% "2.1.0",
+	"org.apache.spark" %% "spark-core"      % sparkVer % Provided,
+	"org.apache.spark" %% "spark-sql"       % sparkVer % Provided,
+	"org.apache.spark" %% "spark-mllib"     % sparkVer % Provided,
+	"org.apache.spark" %% "spark-streaming" % sparkVer % Provided,
 	"com.ning"						% "async-http-client"		% "1.9.10",
 	"com.twitter"					% "util-core_2.11" 			% "6.42.0",
-	
-	"com.databricks"				%% "spark-csv"				% "1.5.0",
 	"com.aerospike"					%  "aerospike-helper-java"	% "1.2",
 	"com.aerospike"					%  "aerospike-client"	% 	"3.3.4",
 	"com.typesafe.scala-logging"	%% "scala-logging-slf4j"	% "2.1.2",
 	"org.scalatest"					%% "scalatest"				% "2.2.1" % Test,
 	"com.github.docker-java" 		% "docker-java" 			% "3.0.8" % Test,
 	"joda-time"						% "joda-time"				% "2.9.9" % Test,
-	"org.testcontainers"			% "testcontainers" 			% "1.2.0" % "test" //testcontainers itself
-	
+	"org.testcontainers"			% "testcontainers" 			% "1.2.0" % Test
 )
 
 resolvers ++= Seq("Local Maven" at Path.userHome.asFile.toURI.toURL + ".m2/repository")
