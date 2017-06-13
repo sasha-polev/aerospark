@@ -58,6 +58,7 @@ object TypeConverter{
           case DoubleType => new Bin(field, value.asInstanceOf[java.lang.Double])
           case FloatType => new Bin(field, value.asInstanceOf[java.lang.Double])
           case DateType => new Bin(field, value.asInstanceOf[java.sql.Date].getTime)
+          case BinaryType => new Bin(field, value.asInstanceOf[Array[Byte]])
           case NullType => Bin.asNull(field)
           case _: ArrayType =>
             value match {
