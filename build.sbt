@@ -1,6 +1,6 @@
 organization := "com.aerospike"
 name         := "aerospike-spark"
-version      := "1.3.1"
+version      := "1.3.2"
 
 crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0")
 
@@ -12,12 +12,13 @@ parallelExecution in test := false
 
 val sparkVer = "2.1.1"
 libraryDependencies ++= Seq(
-	"org.apache.spark" %% "spark-core"      % sparkVer % Provided,
-	"org.apache.spark" %% "spark-sql"       % sparkVer % Provided,
-	"org.apache.spark" %% "spark-mllib"     % sparkVer % Provided,
-	"org.apache.spark" %% "spark-streaming" % sparkVer % Provided,
+	"org.apache.spark"				%% "spark-core"				% sparkVer % Provided,
+	"org.apache.spark" 				%% "spark-sql"				% sparkVer % Provided,
+	"org.apache.spark"				%% "spark-mllib"			% sparkVer % Provided,
+	"org.apache.spark"				%% "spark-streaming"		% sparkVer % Provided,
 	"com.ning"						% "async-http-client"		% "1.9.10",
 	"com.twitter"					% "util-core_2.11" 			% "6.42.0",
+	
 	"com.aerospike"					%  "aerospike-helper-java"	% "1.2",
 	"com.aerospike"					%  "aerospike-client"	% 	"3.3.4",
 	"com.typesafe.scala-logging"	%% "scala-logging-slf4j"	% "2.1.2",

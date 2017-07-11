@@ -1,11 +1,10 @@
 package com.aerospike.spark
 
-import org.apache.spark.sql.SparkSession
-import com.aerospike.spark.sql.AerospikeConfig
 import org.apache.spark.sql.DataFrameReader
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.DataFrameWriter
+import org.apache.spark.sql.SparkSession
+
 
 class AeroSparkSessionFunctions(val sparkSession: SparkSession) extends AnyVal {
 

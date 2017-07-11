@@ -44,19 +44,22 @@ To use connector with the spark-shell, use the `--jars` command line option and 
 Example:
 
 ```bash
-$ spark-shell --jars target/scala-2.11/aerospike-spark-assembly-1.2.jar
+$ spark-shell --jars target/scala-2.11/aerospike-spark-assembly-1.3.1.jar
 ```
 
-Import the `com.aerospike.spark.sql._` package
+Import the `com.aerospike.spark._` package
 
-```
+```scala
+scala> import com.aerospike.spark._
+import com.aerospike.spark._
+
 scala> import com.aerospike.spark.sql._
 import com.aerospike.spark.sql._
 ```
 
-and any Aerospike packages and classes. For example:
+and Aerospike packages and classes. For example:
 
-```
+```scala
 scala> import com.aerospike.client.AerospikeClient
 import com.aerospike.client.AerospikeClient
 
@@ -70,182 +73,157 @@ scala> import com.aerospike.client.Value
 import com.aerospike.client.Value
 
 ```
-
-Load some data into Aerospike with:
+Set up spark configuration:
 
 ```scala
-val TEST_COUNT = 100
-val namespace = "test"
-var client=AerospikeConnection.getClient(AerospikeConfig.newConfig("localhost",3000,1000))
-Value.UseDoubleType = true
-for (i <- 1 to TEST_COUNT) {
-  val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
-  client.put(null, key,
-     new Bin("one", i),
-     new Bin("two", "two:"+i),
-     new Bin("three", i.toDouble)
-  )
-}
+    import org.apache.spark.sql.{ SQLContext, SparkSession, SaveMode}
+    import org.apache.spark.SparkConf
+    val conf = new SparkConf().
+      setMaster("local[2]").
+      setAppName("Aerospike Tests for Spark Dataset").
+      set("aerospike.seedhost", "localhost").
+      set("aerospike.port",  "3000").
+      set("aerospike.namespace", "test").
+      set("stream.orig.url", "localhost")
+```
+
+Load some data into Aerospike with java client:
+
+```scala
+    val TEST_COUNT = 100
+    val namespace = "test"
+    var client=AerospikeConnection.getClient(AerospikeConfig(conf))
+    Value.UseDoubleType = true
+    for (i <- 1 to TEST_COUNT) {
+      val key = new Key(namespace, "rdd-test", "rdd-test-"+i)
+      client.put(null, key,
+         new Bin("one", i),
+         new Bin("two", "two:"+i),
+         new Bin("three", i.toDouble)
+      )
+    }
 ```
 
 Try a test with the loaded data:
 
 ```scala
-import org.apache.spark.sql.{ SQLContext, SparkSession, SaveMode}
-import org.apache.spark.SparkConf
-val conf = new SparkConf().
-  setMaster("local[2]").
-  setAppName("Aerospike Tests for Spark Dataset").
-  set("aerospike.seedhost", "localhost").
-  set("aerospike.port",  "3000").
-  set("aerospike.namespace", "test").
-  set("stream.orig.url", "localhost")
-
-val spark = SparkSession.builder().
-  config(conf).
-  master("local[*]").
-  appName("Aerospike Tests").
-  config("spark.ui.enabled", "false").
-  getOrCreate()
-
-val thingsDF = spark.
-  read.
-  format("com.aerospike.spark.sql").
-  option("aerospike.set", "rdd-test").
-  load
-
-import spark.implicits._
-val thing = thingsDF.filter($"one" === 55).first()
+    val session = SparkSession.builder().
+      config(conf).
+      master("local[*]").
+      appName("Aerospike Tests").
+      config("spark.ui.enabled", "false").
+      getOrCreate()
+    
+    val thingsDF = session.scanSet("rdd-test")
+    
+    thingsDF.registerTempTable("things")
+    val filteredThings = session.sql("select * from things where one = 55")
+    val thing = filteredThings.first()
 ```
 
-### Loading and Saving DataFrames
-
-The Aerospike Spark Connector provides functions to load data from Aerospike into a DataFrame and save a DataFrame into Aerospike
+### Loading and Saving DataFrames 
+The Aerospike Spark connector provides functions to load data from Aerospike into a DataFrame and save a DataFrame into Aerospike
 
 #### Loading data
 
 ```scala
-import org.apache.spark.sql.SparkSession
-val spark: SparkSession = ...
-val thingsDF = spark.
-  read.
-  format("com.aerospike.spark.sql").
-  option("aerospike.set", "rdd-test").
-  load
+    val thingsDF =session.scanSet("rdd-test")
 ```
 
-You can see that the read function is configured by a number of options, these are:
-
-- `format("com.aerospike.spark.sql")` specifies the format to load the DataFrame and points to the Aerospike Spark Connector
-- `option("aerospike.set", "rdd-test")` specifies the Set to be used e.g. `rdd-test`
-
-Spark SQL can be used to efficiently filter (e.g. `where lastName = 'Smith'`) Bin values represented as columns.
-
-The filter is passed down to the Aerospike cluster and filtering is done in the server.
-
+You can see that the read function "scanSet" takes one parameter that specifies the Set to be used e.g. "rdd-test"
+Spark SQL can be used to efficiently filter (where lastName = 'Smith') Bin values represented as columns. The filter is passed down to the Aerospike cluster and filtering is done in the server. Here is an example using filtering:
 ```scala
-val thingsDF = spark.
-  read.
-  format("com.aerospike.spark.sql").
-  option("aerospike.set", "rdd-test").
-  load
-
-import spark.implicits._
-val thing = thingsDF.filter($"one" === 55).first()
+    thingsDF.registerTempTable("things")
+    val filteredThings = sqlContext.sql("select * from things where one = 55")
 ```
 
 Additional meta-data columns are automatically included when reading from Aerospike, the default names are:
 
 - `__key` the values of the primary key if it is stored in Aerospike
-- `__digest` the digest as `Array[byte]`
-- `__generation` the gereration value of the record read
+- `__digest` the digest as Array[byte]
+- `__generation` the generation value of the record read
 - `__expitation` the expiration epoch
-- `__ttl` the time to live value calcualed from the expiration - now
+- `__ttl` the time to live value calculated from the expiration - now
  
 These meta-data column name defaults can be be changed by using additional options during read or write, for example:
 
 ```scala
-val thingsDF = spark.
-  read.
-  format("com.aerospike.spark.sql").
-  option("aerospike.set", "rdd-test").
-  option("aerospike.expiryColumn", "_my_expiry_column").
-  load
+    val thingsDF2 = session.aeroRead.
+      option("aerospike.set", "rdd-test").
+      option("aerospike.expiryColumn", "_my_expiry_column").
+      load 
 ```
 
 #### Saving data
 
 A DataFrame can be saved to a Aerospike database by specifying a column in the DataFrame as the Primary Key or the Digest.
 
-##### Saving by Digest
+##### Saving Dataframe by Digest
 
 In this example, the value of the digest is specified by the `__digest` column in the DataFrame.
 
 ```scala
-val thingsDF = spark.
-  read.
-  format("com.aerospike.spark.sql").
-  option("aerospike.set", "rdd-test").
-  load
-
-import org.apache.spark.sql.SaveMode
-thingsDF.
-  write.
-  mode(SaveMode.Overwrite).
-  format("com.aerospike.spark.sql").
-  option("aerospike.set", "rdd-test").
-  option("aerospike.updateByDigest", "__digest").
-  save
+    val thingsDF = session.scanSet("rdd-test")
+  		
+    thingsDF.write.aerospike.
+      mode(SaveMode.Overwrite).
+      setName("rdd-test").
+      option("aerospike.updateByDigest", "__digest").
+      save()                
 ```
+
 ##### Saving by Key
+In this example, the value of the primary key is specified by the "key" column in the DataFrame.
 
-In this example, the value of the primary key is specified by the `key` column in the DataFrame.
-
+```scala
+      import org.apache.spark.sql.types.StructType
+      import org.apache.spark.sql.types.StructField
+      import org.apache.spark.sql.types.LongType
+      import org.apache.spark.sql.types.StringType
+      import org.apache.spark.sql.DataFrame
+      import org.apache.spark.sql.Row
+      import org.apache.spark.sql.SaveMode
+       
+      val schema = new StructType(Array(
+          StructField("key",StringType,nullable = false),
+          StructField("last",StringType,nullable = true),
+          StructField("first",StringType,nullable = true),
+          StructField("when",LongType,nullable = true)
+          )) 
+      val rows = Seq(
+          Row("Fraser_Malcolm","Fraser", "Malcolm", 1975L),
+          Row("Hawke_Bob","Hawke", "Bob", 1983L),
+          Row("Keating_Paul","Keating", "Paul", 1991L), 
+          Row("Howard_John","Howard", "John", 1996L), 
+          Row("Rudd_Kevin","Rudd", "Kevin", 2007L), 
+          Row("Gillard_Julia","Gillard", "Julia", 2010L), 
+          Row("Abbott_Tony","Abbott", "Tony", 2013L), 
+          Row("Tunrbull_Malcom","Tunrbull", "Malcom", 2015L)
+          )
+          
+      val inputRDD = sc.parallelize(rows)
+      
+      val newDF = session.createDataFrame(inputRDD, schema)
+  
+      newDF.write.aerospike.
+        mode(SaveMode.Ignore).
+        setName("rdd-test").
+        key("key").
+        save()
 ```
-import org.apache.spark.sql.SparkSession
-val spark: SparkSession = ...
-import spark.implicits._
 
-import org.apache.spark.sql.types.StructType
-val schema = new StructType().
-  add($"key".string.copy(nullable = false)).
-  add($"last".string).
-  add($"first".string).
-  add($"when".long)
+Persist dataset to aerospike.
 
-import org.apache.spark.sql.Row
-val rowRDD = Seq(
-  ("Fraser_Malcolm","Fraser", "Malcolm", 1975L),
-  ("Hawke_Bob","Hawke", "Bob", 1983L),
-  ("Keating_Paul","Keating", "Paul", 1991L),
-  ("Howard_John","Howard", "John", 1996L),
-  ("Rudd_Kevin","Rudd", "Kevin", 2007L),
-  ("Gillard_Julia","Gillard", "Julia", 2010L),
-  ("Abbott_Tony","Abbott", "Tony", 2013L),
-  ("Tunrbull_Malcom","Tunrbull", "Malcom", 2015L)).toDF.rdd
-val newDF = spark.createDataFrame(rowRDD, schema)
-scala> newDF.show
-+---------------+--------+-------+----+
-|            key|    last|  first|when|
-+---------------+--------+-------+----+
-| Fraser_Malcolm|  Fraser|Malcolm|1975|
-|      Hawke_Bob|   Hawke|    Bob|1983|
-|   Keating_Paul| Keating|   Paul|1991|
-|    Howard_John|  Howard|   John|1996|
-|     Rudd_Kevin|    Rudd|  Kevin|2007|
-|  Gillard_Julia| Gillard|  Julia|2010|
-|    Abbott_Tony|  Abbott|   Tony|2013|
-|Tunrbull_Malcom|Tunrbull| Malcom|2015|
-+---------------+--------+-------+----+
-
-import org.apache.spark.sql.SaveMode
-newDF.
-  write.
-  mode(SaveMode.Ignore).
-  format("com.aerospike.spark.sql").
-  option("aerospike.set", "rdd-test").
-  option("aerospike.updateByKey", "key").
-  save
+```scala
+	case class Person(name:String, age: Long, sex: String, ssn: String)
+    import session.implicits._
+    
+    Seq(
+        Person("Jimmy", 20L, "M", "444-55-5555"),
+        Person("Himmy", 21L, "M", "444-55-5556"),
+        Person("Limmy", 22L, "M", "444-55-5557"),
+        Person("Timmy", 23L, "M", "444-55-5558")
+        ).toDS().saveToAerospike("ssn")
 ```
 
 ##### Using TTL while saving 
@@ -298,5 +276,3 @@ aerospike.timeout|Timeout for all operations in milliseconds| 1000
 aerospike.ttlColumn|The name of the TTL column in the Data Frame| `__ttl`
 aerospike.updateByDigest|This option specifies that updates are done by digest with the value in the column specified ```option("aerospike.updateByDigest", "Digest")```|
 aerospike.updateByKey|This option specifies that updates are done by key with the value in the column specified ```option("aerospike.updateByKey", "key")```|
-
-

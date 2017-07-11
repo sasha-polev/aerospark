@@ -23,8 +23,9 @@ import scala.collection.JavaConversions.mapAsScalaMap
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrameWriter
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 
@@ -34,9 +35,10 @@ import com.aerospike.client.Record
 import com.aerospike.client.Value
 import com.aerospike.spark.sql.AerospikeConfig
 import com.aerospike.spark.sql.AerospikeConnection
-import org.apache.spark.sql.DataFrameWriter
-import com.twitter.util.{Try,Future,Promise}
 import com.twitter.util.Await
+import com.twitter.util.Future
+import com.twitter.util.Promise
+import com.twitter.util.Try
 
 /**
  * 
@@ -47,7 +49,7 @@ import com.twitter.util.Await
 final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializable {
 
   val spark: SparkSession = dataset.sparkSession
-  
+  val sparkConf = spark.sparkContext.getConf
     
   def aeroWrite(): DataFrameWriter[T]={
     dataset.write.aerospike
@@ -60,9 +62,9 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
    * 
    * @return a Map[Any, Map[String, Object]]: a map with key to the map of bin name to value
    */
-  def aeroJoinMap(keyCol: String, set: String, bins: Array[String] = Array.empty[String]): Map[Any, Map[String, Object]] = {
+  def aeroJoinMap(keyCol: String, set: String, bins: Array[String] = Array.empty[String], partition: Iterator[T] = Iterator[T]()): Map[Any, Map[String, Object]] = {
     for {
-        (k,v) <- batchJoin(keyCol, set, bins) 
+        (k,v) <- batchJoin(keyCol, set, bins, partition) 
         if(Option(v).isDefined)
     } yield (k, v.bins.toMap)
   }
@@ -76,11 +78,13 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
    */
   def aeroJoin[A: TypeTag: ClassTag](keyCol: String, set: String)(implicit ev: A <:< AeroKV): Dataset[A] = {
     implicit val myObjEncoder = org.apache.spark.sql.Encoders.kryo[A]
-    val rs = for {
-        (k,v) <- aeroJoinMap(keyCol, set, classAccessors[A].map(m => m.name.toString).toArray)
-        val v2 = fromMap[A](v.+ ("__key"-> k))
-    } yield (v2.asInstanceOf[A])
-    spark.createDataset(rs.toSeq)
+    dataset.mapPartitions{iter =>
+      val rs = for {
+          (k,v) <- aeroJoinMap(keyCol, set, classAccessors[A].map(m => m.name.toString).toArray, iter)
+          val v2 = fromMap[A](v.+ ("__key"-> k))
+      } yield (v2.asInstanceOf[A])
+      rs.toIterator
+    }
   }
    
   /**
@@ -135,23 +139,22 @@ final class AeroSparkDatasetFunctions[T](dataset: Dataset[T]) extends Serializab
    * 
    * @return a map of key->record
    */
-  private def batchJoin(keyCol: String, set: String, binNames:Array[String] = Array[String]())(
-  implicit client: AerospikeClient = AerospikeConnection.getClient(spark.conf)): Map[Any, Record] = {
-    val kVal = dataset.select(keyCol).collect
-    val batchMax:Int = AerospikeConfig(spark.conf).get(AerospikeConfig.BatchMax).toString.toInt
+  private def batchJoin(keyCol: String, set: String, binNames:Array[String] = Array[String](), partition: Iterator[T] = Iterator[T]()): Map[Any, Record] = {
+    val kVal = if(partition.isEmpty) dataset.select(keyCol).collect().map(_.get(0)) else partition.map(_.getV(keyCol)).toArray
+    val batchMax:Int = AerospikeConfig(sparkConf).get(AerospikeConfig.BatchMax).toString.toInt
     
     val futureJobs = for{ 
         g <- kVal.grouped(batchMax)
-        val ks = for (ak <- g) yield new Key(spark.conf.get(AerospikeConfig.NameSpace), set, Value.get(ak.get(0)))
+        val ks = for (ak <- g) yield new Key(sparkConf.get(AerospikeConfig.NameSpace), set, Value.get(ak))
     } yield batchRead(ks, binNames)  
     
     val f = Future.collect(futureJobs.toList)
     Await.result(f) reduce(_++_)
   }
   
-  private def batchRead(ks: Array[Key], binNames: Array[String])(
-  implicit client: AerospikeClient = AerospikeConnection.getClient(spark.conf)): Future[Map[Any, Record]]={
+  private def batchRead(ks: Array[Key], binNames: Array[String]): Future[Map[Any, Record]]={
     val returnVal = new Promise[Map[Any, Record]]
+    val client: AerospikeClient = AerospikeConnection.getClient(sparkConf)
     new Promise(Try(if (binNames.isEmpty) client.get(null, ks) else  client.get(null, ks, binNames:_*))) onSuccess{ records =>
       returnVal.setValue((ks zip records).toMap[Any, Record])
     } onFailure { exc => // callback for failed batch fetch

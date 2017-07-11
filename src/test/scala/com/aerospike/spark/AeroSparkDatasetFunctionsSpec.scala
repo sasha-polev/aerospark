@@ -66,7 +66,7 @@ class AeroSparkDatasetFunctionsSpec extends FlatSpec with Matchers with SparkASI
     assert(spark.scanSet("inserts").count == 3)
   }
 
-  it should "Select by aeroJoin Int" in {     
+  it should "Select by aeroJoinMap Int" in {     
     val spark = session
     import spark.implicits._
 

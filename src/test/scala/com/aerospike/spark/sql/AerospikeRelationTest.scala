@@ -18,7 +18,7 @@ import org.apache.spark.sql.SaveMode
 
 import com.aerospike.client.policy.WritePolicy
 import com.aerospike.spark.SparkASITSpecBase
-import com.aerospike.spark.Globals
+import com.aerospike.spark._
 
 
 class AerospikeRelationTest extends FlatSpec with BeforeAndAfter with SparkASITSpecBase{
@@ -48,10 +48,10 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter with SparkASITS
   behavior of "Aerospike Relation"
 
   it should "create an AerospikeRelation" in {
-    val thingsDF = sqlContext.read
-      .format("com.aerospike.spark.sql")
-      .option("aerospike.set", "rdd-test")
-      .load
+    val spark = session
+    import spark.implicits._
+
+    val thingsDF = spark.scanSet("rdd-test")
     val result = thingsDF.take(50)
     result.foreach { row =>
       assert(row.getAs[String]("two").startsWith("two:"))
@@ -63,7 +63,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter with SparkASITS
       .format("com.aerospike.spark.sql")
       .option("aerospike.set", "rdd-test")
       .load
-    thingsDF.registerTempTable("things")
+    thingsDF.createOrReplaceTempView("things")
     val filteredThings = sqlContext.sql("select * from things where one = 55")
     val count = filteredThings.count()
     assert(count > 0)
@@ -77,7 +77,7 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter with SparkASITS
       .format("com.aerospike.spark.sql")
       .option("aerospike.set", "rdd-test")
       .load
-    thingsDF.registerTempTable("things")
+    thingsDF.createOrReplaceTempView("things")
     val filteredThings = sqlContext.sql("select * from things where one between 55 and 65")
     val count = filteredThings.count()
     assert(count > 0)
@@ -86,7 +86,6 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter with SparkASITS
     assert(one >= 55)
     assert(one <= 65)
   }
-
 
   it should "save with Overwrite (RecordExistsAction.REPLACE)" in {
     val thingsDF = sqlContext.read
@@ -184,11 +183,10 @@ class AerospikeRelationTest extends FlatSpec with BeforeAndAfter with SparkASITS
        */
       val flightsDF = sqlContext.createDataFrame(flightsRDD)
 
-      flightsDF.write
+      flightsDF.write.aerospike
         .mode(SaveMode.Overwrite)
-        .format("com.aerospike.spark.sql")
-        .option("aerospike.set", "spark-test")
-        .option("aerospike.updateByKey", "key")
+        .setName("spark-test")
+        .key("key")
         .option("aerospike.ttlColumn", "expiry")
         .save()
     }
